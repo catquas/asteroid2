@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+{% from "_sample_detail_macros.html" import sample_detail_row %}
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Estimate Review - StarNet</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', path='/styles.css') }}?v=8">
+    <script defer
+            src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"
+            integrity="sha384-b0GXujLkk9eYYSmcSfoyZbfyElGAQnDyY0skCHSG6w3JgTMFnz11ggrTAr7seu9f"
+            crossorigin="anonymous"></script>
+    <script defer src="{{ url_for('static', path='/app.js') }}?v=5"></script>
+  </head>
+  <body>
+    {# Top filter bar: state/area/series selectors plus datatype/date controls. #}
+    <header class="filter-bar">
+      <form id="filters" class="filter-form" method="get" action="/">
+        {# dropdowns is assembled in app.py so this template can render each filter
+      control from the same small data shape. #}
+        {% for dropdown in dropdowns %}
+          <label class="{{ dropdown.class }}">
+            <span>{{ dropdown.label }}</span>
+            {% if dropdown.name == "datatype" %}
+              {# Datatype only renders currently available choices. #}
+              <div class="datatype-buttons" role="group" aria-label="Datatype">
+                {% for button in dropdown.datatype_buttons %}
+                  <a class="datatype-button{{ ' is-active' if button.is_active }}" href="{{ button.url }}" {{
+                  ('aria-current="true"' if button.is_active)|safe }}>{{ button.label }}</a>
+                {% endfor %}
+              </div>
+            {% elif dropdown.name == "closing" %}
+              {# Closing only renders currently available choices. #}
+              <div class="closing-buttons" role="group" aria-label="Closing">
+                {% for button in dropdown.closing_buttons %}
+                  <a
+                    class="closing-button{{ ' is-active' if button.is_active }}" href="{{ button.url }}" {{
+                  ('aria-current="true"' if button.is_active)|safe }}>{{ button.label }}</a>
+                {% endfor %}
+              </div>
+            {% elif dropdown.nav %}
+              {# Stepped selects preserve the full filter state in their prev/next URLs. #}
+              <div class="step-select">
+                {% if dropdown.nav.prev %}
+                  <a class="step-button"
+                     href="{{ dropdown.nav.prev }}"
+                     aria-label="Previous {{ dropdown.name }}"
+                     {{ (' data-series-nav="prev"' if dropdown.series_nav)|safe }}>&lsaquo;</a>
+                {% else %}
+                  <span class="step-button is-disabled"
+                        aria-label="No previous {{ dropdown.name }}"
+                        {{ (' data-series-nav="prev"' if dropdown.series_nav)|safe }}>&lsaquo;</span>
+                {% endif %}
+                <select name="{{ dropdown.name }}" data-submit-on-change>
+                  {% for option in dropdown.options %}
+                    <option value="{{ option.value }}"
+                            {{ ' selected' if option.value==dropdown.selected or option.value[-2:]==dropdown.selected }}>
+                      {{ option.label }}
+                    </option>
+                  {% endfor %}
+                </select>
+                {% if dropdown.nav.next %}
+                  <a class="step-button" href="{{ dropdown.nav.next }}" aria-label="Next {{ dropdown.name }}" {{
+                    ('data-series-nav="next"' if dropdown.series_nav)|safe }}
+                  >&rsaquo;</a>
+                {% else %}
+                  <span class="step-button is-disabled"
+                        aria-label="No next {{ dropdown.name }}"
+                        {{ (' data-series-nav="next"' if dropdown.series_nav)|safe }}>&rsaquo;</span>
+                {% endif %}
+              </div>
+            {% else %}
+              <select name="{{ dropdown.name }}" data-submit-on-change>
+                {% for option in dropdown.options %}
+                  <option value="{{ option.value }}"
+                          {{ ' selected' if option.value==dropdown.selected }}>
+                    {{ option.label }}
+                  </option>
+                {% endfor %}
+              </select>
+            {% endif %}
+          </label>
+        {% endfor %}
+        <label class="checkbox-field">
+          <span>TOP</span>
+          <span class="checkbox-control">
+            <input type="checkbox" name="top_level" value="Y" data-submit-on-change {{ 'checked' if
+              selected.top_level=="Y" }}></input>
+          </span>
+        </label>
+        <label class="checkbox-field">
+          <span>OOT</span>
+          <span class="checkbox-control">
+            <input type="checkbox" name="oot" value="Y" data-submit-on-change {{ 'checked' if 
+              selected.oot=="Y"}} ></input>
+                        <!-- 'checked' if selected.oot=="Y" -->
+          </span>
+        </label>
+        <noscript>
+          <button type="submit">Apply</button>
+        </noscript>
+      </form>
+    </header>
+    <main>
+      {# Series info section: one/two-row metadata table above the wider tables. #}
+      <section class="summary">
+        <div class="series-info-wrap">
+          <table class="series-info-table">
+            <thead>
+              <tr>
+                <th>Industry</th>
+                {% for column in series_info.columns if not column.startswith('_') %}
+                  <th>{{ column }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% if series_info.columns %}
+                {% for row in series_info.rows %}
+                  {% set rownum = loop.index0 %}
+                  {% set priorcols = ['PFR', 'Sample Adj', 'Est Adj', 'Adj Comment', 'NSE', 'Ratio Adj'] %}
+                  <tr>
+                    <td class="emojis">{{ emojis if rownum==0 }}</td>
+                    {% for column in series_info.columns if not column.startswith('_') %}
+                      {% if column == 'series' or rownum==0 or column in priorcols %}
+                        <td colspan='{{ "7" if column=="series" and rownum==1 else "1"  }}'>
+                      {% endif %}
+                      {% set flag_badges = series_info.flag_chg_uis.get(column, []) %}
+                      {% if column == 'series' and rownum==0 %}
+                        <a href="{{ row['_aceslink'] }}" target="_blank" rel="noopener noreferrer">{{ row['series'] }}</a>
+                      {% elif flag_badges %}
+                        <span class="flag-chg-uis" aria-label="{{ series_info.row[column] }}">
+                          {% for badge in flag_badges %}
+                            <span class="flag-chg-badge">
+                              <span class="flag-chg-label">{{ badge.flag }}</span>
+                              <span class="flag-chg-count">{{ badge.count }}</span>
+                            </span>
+                          {% endfor %}
+                        </span>
+                      {% else %}
+                        {{ row[column] if (row[column] and (rownum==0 or column in priorcols)) }}
+                      {% endif %}
+                      {% if column == 'senior' or rownum==0 or column in priorcols %}
+                        </td>
+                      {% endif %}
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td class="empty">No series info row.</td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {# Middle tables section: estimate comparison, sample summary, model info. #}
+      <section class="middle-tables" aria-label="Example tables">
+        {# middle_tables contains already-formatted rows/cells, including flags for
+    highlighted cells, ratio rows, and optional numeric header values. #}
+        {% for table in middle_tables %}
+          <article>
+            <div class="table-heading">
+              <h2>{{ table.title }}</h2>
+              {% if table.link_value %}
+                <span class="table-header-value">Sample Link: {{ table.link_value }}</span>
+              {% endif %}
+              {% if table.betaval %}
+                <span class="table-header-value">Beta: {{ "%.4f"|format(table.betaval|float) }}, Y2: {{ "%.4f"|format(table.y2val|float) }}</span>
+              {% endif %}
+            </div>
+            <div class="table-wrap">
+              <table class="middle-table" {{ ('data-estimate-comparison-table' if table.title=="Estimate Comparison" )|safe
+                }}>
+                <thead class="sticker">
+                  <tr>
+                    <th>{{ table.heading_column }}</th>
+                    {% for column in table.columns %}
+                      <th>{{ column }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in table.rows %}
+                    <!-- tr class="{{ 'is-ratio-row' if row.is_ratio }} {{ 'has-section-separator' if row.heading == 'p-pub' }} {{ row.class }}" -->
+                    <tr class="{{ 'pub-row' if row.heading == 'pub' }} {{ 'is-ratio-row' if row.is_ratio }} {{ 'has-section-separator' if row.heading == 'p-pub' }} {{ 'prelim-vals' if row.heading and row.heading.startswith('p-') }} {{ row.class }}" {{
+
+                      ('data-estimate-row="' ~ row.heading ~ '"' if table.title == "Estimate Comparison")|safe }}
+                      >
+                      <th scope="row">{{ row.heading|title }}</th>
+                      {% for cell in row.cells %}
+                        <td
+                          class="{{ ' is-highlighted' if cell.is_highlighted }}" {{
+                          ('data-n-recalc-cell="' ~ cell.column|lower ~ '"' if table.title == "Estimate Comparison" and row.heading == "N-Recalc" and cell.column in ["CM", "OTM", "OTY"])|safe }}>
+                          {% if row.is_ratio %}
+                            {{ "{:.1%}".format(cell.value|float) if cell.value }}
+                          {% elif cell.ratio_value %}
+                            {{ "{:,}".format(cell.value|int) }} &nbsp;[ {{ "{:.1%}".format(cell.ratio_value|float) }}]
+                          {% elif cell.is_decimal %}
+                            {{ cell.value }}
+                          {% elif cell.value is float and cell.value % 1 != 0 %}
+                            {{ "%.4f"|format(cell.value|float) }}
+                          {% elif cell.value %}
+                            {{ "{:,}".format(cell.value|int) }}
+                          {% else %}
+                            <!-- this makes it so it does not print if the cell has no value -->
+                            {{ cell.value if cell.value }}
+                          {% endif %}
+                          <!-- xx{{ cell.value }}xx -->
+                        </td>
+                      {% endfor %}
+                    </tr>
+                  {% else %}
+                    <tr>
+                      <td colspan="{{ table.columns|length + 1 }}" class="empty">No rows.</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </article>
+        {% endfor %}
+      </section>
+      {# Sample detail section: expandable sample detail rows and ATYP controls. #}
+    <section id="sample-detail-section" class="sample-detail-table">
+        {# Summary rows may summarize multiple detail rows. Details are loaded
+          from FastAPI only when a summary row is expanded. #}
+        <article>
+          <div class="table-heading">
+            <h2>Sample Details</h2>
+            {% if sample_detail_rows|length > 0 %}
+              <span>Showing {{ sample_detail_rows|length }} of {{ sample_detail_rows[0]['_total_rows'] }} UIs</span>
+            {% endif %}
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead class="sticker">
+                <tr>
+                  <th class="row-kind-heading">Rows</th>
+                  {% for column in sample_detail_columns %}
+                    <th class="{{ 'pvals' if column.startswith('pm') or column.startswith('prior') }}">{{ column }}</th>
+                  {% endfor %}
+                  <th class="change-heading"></th>
+                  <th class="history-heading">History</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in sample_detail_rows %}
+                  {% set detail_group = "sample-detail-details-" ~ loop.index0 %}
+                  {% call sample_detail_row(row, sample_detail_columns, "sample-detail-summary-row is-" ~ row._row_type,
+                    detail_group, row._is_summed) %}
+                    {% if row._is_summed %}
+                      <button class="expand-button"
+                              type="button"
+                              aria-expanded="false"
+                              data-toggle-details
+                              data-detail-group="{{ detail_group }}"
+                              data-row-reptstate="{{ row.reptstate }}"
+                              data-row-ui="{{ row.ui }}"
+                              data-row-flag="{{ row.flag }}"
+                              data-row-is-knr="{{ 'true' if row._is_knr else 'false' }}">
+                        <span class="expand-icon" aria-hidden="true">+</span>
+                        <span>{{ row._detail_count }}</span>
+                      </button>
+                    {% endif %}
+                  {% endcall %}
+                {% else %}
+                  <tr>
+                    <td colspan="{{ sample_detail_columns|length + 3 }}" class="empty">No matching rows.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+      {# Graph section: Chart.js canvas plus the compact values table below it. #}
+      <section class="line-graph">
+        {# Chart.js reads the JSON script tag below; the canvas itself starts
+    empty until static/app.js initializes it. #}
+        <article>
+          <div class="table-heading">
+            <h2>Series History</h2>
+            <div id="lineGraphLegend"
+                  class="chart-legend"
+                  aria-label="Line graph legend"></div>
+          </div>
+          <div class="chart-wrap">
+            {% if line_graph.labels %}
+              <canvas id="lineGraph"
+                      class="time-series-chart"
+                      aria-label="Time series line graph of series history with tolerance bands"
+                      role="img"></canvas>
+              <script type="application/json" id="lineGraphData">{{ line_graph|tojson }}</script>
+            {% else %}
+              <p class="empty chart-empty">No line graph rows.</p>
+            {% endif %}
+            <script type="application/json" id="estCalcData">{{ est_calc|tojson }}</script>
+          </div>
+        </article>
+      </section>
+      <br>
+      <section id="history-table">
+        <article>
+          <div id="est-hist" class="table-heading">
+            <h2>Estimate and Adjustment History</h2>
+            <span><button id='show-hide-otm'>Show/Hide OTMCs</button></span>
+          </div>
+          {% if line_graph_table.columns %}
+            <div class="graph-data-wrap">
+              <table class="graph-data-table">
+                <thead>
+                  <tr>
+                    {% for column in line_graph_table.columns %}
+                      <th>{{ column }}</th>
+                    {% endfor %}
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in line_graph_table.rows %}
+                    <!-- If the row has non-zero/blank values -->
+                    {% if (row.values() | list)[1:] | reject('equalto', '0') | reject('equalto', '0.0') | list | length > 0 %}
+                    <tr>
+                      {% for column in line_graph_table.columns %}
+                        <td>
+                          <span class="default-val">
+                            {% if row['rowtitle'] == 'Est Adj' or column == 'rowtitle' %}
+                              {{ row[column] if (row[column] != '0' and row[column] != '0.0') }}
+                            {% else %}
+                              {{ "{:,}".format(row[column] | int) if row[column] | int }}
+                            {% endif %}
+                          </span>
+                          {% if column != 'rowtitle' and (row['rowtitle'] == 'Orig Est' or row['rowtitle'] == 'Pub Est') %}
+                            <span class="otm-val hiddenit">
+                              {{ "{:,}".format(row[column] | int - row[loop.previtem] | int) if (row[column] | int) and (loop.index0 > 1) }}
+                            </span>
+                          {% endif %}
+                        </td>
+                      {% endfor %}
+                    </tr>
+                  {% endif %}
+                  {% endfor %}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          {% endif %}
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

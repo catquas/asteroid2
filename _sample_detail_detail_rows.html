@@ -1,0 +1,6 @@
+{% from "_sample_detail_macros.html" import sample_detail_row %}
+{% for detail in sample_detail_details %}
+  {% call sample_detail_row(detail, sample_detail_columns, "sample-detail-detail-row", detail_row_group=detail_group) %}
+    <span class="row-badge is-detail">Detail</span>
+  {% endcall %}
+{% endfor %}

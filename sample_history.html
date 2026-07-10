@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sample History</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}?v=8">
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js" integrity="sha384-b0GXujLkk9eYYSmcSfoyZbfyElGAQnDyY0skCHSG6w3JgTMFnz11ggrTAr7seu9f" crossorigin="anonymous"></script>
+    <script defer src="{{ url_for('static', path='/app.js') }}?v=5"></script>
+    <style>
+      ul {
+        list-style-type: none; /* Removes the dots */
+        padding: 0;            /* Optional: Removes default left indentation */
+        margin: 0;             /* Optional: Removes default browser spacing */
+      }
+    </style>
+  </head>
+  <body>
+    <main class="sample-history-page">
+      <section>
+        <div class="table-heading">
+          <h1>Sample History</h1>
+          <span>{{ rows|length }} row{{ 's' if rows|length != 1 }}</span>
+        </div>
+        <dl class="history-params">
+          <div>
+            <dt>ui</dt>
+            <dd>{{ params.ui }}</dd>
+          </div>
+          <div>
+            <dt>report</dt>
+            <dd>
+              {% if reportlist | count > 10 %}
+                <button command="show-modal" commandfor="my-dialog">Show Reports</button>
+                <dialog id="my-dialog" closedby="any">
+                  <ul style="column-count: 4; list-style-position: inside;">
+                    {% for report in reportlist %}
+                      <li>{{ report }}</li>
+                    {% endfor %}
+                  </ul>
+                  <button commandfor="my-dialog" command="close">Close</button>
+                </dialog>
+              {% else %}
+                <ul style="column-count: 2; list-style-position: inside;">
+                  {% for report in reportlist %}
+                    <li>{{ report }}</li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            </dd>
+          </div>
+          <div>
+            <dt>flag</dt>
+            <dd>{{ params.flag }}</dd>
+          </div>
+          <div>
+            <dt>knr</dt>
+            <dd>{{ params.knr }}</dd>
+          </div>
+        </dl>
+        <div class="sample-history-chart-wrap">
+          {# Chart.js reads this server-built JSON payload from the script tag. #}
+          {% if sample_history_graph.datasets %}
+            <canvas
+              id="sampleHistoryGraph"
+              class="sample-history-chart"
+              aria-label="Sample history PM and CM line graph"
+              role="img"
+            ></canvas>
+            <script type="application/json" id="sampleHistoryGraphData">{{ sample_history_graph|tojson }}</script>
+          {% else %}
+            <p class="empty chart-empty">No sample history graph rows.</p>
+          {% endif %}
+        </div>
+        <br>
+        {# Raw data displayed below the chart. #}
+        <div class="table-wrap">
+          <table class="sample-history-table">
+            <thead>
+              <tr>
+                {% for column in columns %}
+                  <th>{{ column }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+                <tr>
+                  {% for column in columns %}
+                    {% set value = row[column] %}
+                    <td>
+                      {% if value is number %}
+                        {% if value % 1 == 0 %}
+                          {{ value|int if value }}
+                        {% else %}
+                          {{ value if value }}
+                        {% endif %}
+                      {% else %}
+                        {{ value if value }}
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+              {% else %}
+                <tr><td colspan="{{ columns|length if columns else 1 }}" class="empty">No matching sample history rows.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

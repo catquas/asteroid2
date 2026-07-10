@@ -1,0 +1,72 @@
+{% macro sample_detail_row(row, columns, row_class, detail_group=None, is_summary=False, detail_row_group=None) %}
+  <tr class="{{ row_class }}"
+      {% if detail_row_group %}data-detail-row="{{ detail_row_group }}"{% endif %}>
+    <td class="row-kind-cell">{{ caller() }}</td>
+    {% for column in columns if column in row %}
+      <td class="{{ 'wotm' if column == 'wotm' }} {{ 'pvals' if column.startswith('pm') or column.startswith('prior') }}">
+        {% if column == 'ui' %}
+          <a href="{{ row['_ui_url'] }}" target="_blank" rel="noopener noreferrer">{{ row['ui'] }}</a>
+        {% elif column == 'report' %}
+          <a href="{{ row['_report_url'] }}" target="_blank" rel="noopener noreferrer">{{ row['report'] }}</a>
+        {% elif column == "flag" %}
+          {# These data-* values are the inputs used by app.js when it calls the
+             recalculation API. Summary rows also carry detail-group wiring. #}
+          <select class="atyp-flag-select{{ ' is-atyp-mismatch' if row[column] != row['origflag'] }}"
+                  aria-label="ATYP flag for row {{ row.ui }} {{ row.rep }}"
+                  data-atyp-flag-select
+                  data-row-pm="{{ row.pm }}"
+                  data-row-cm="{{ row.cm }}"
+                  data-row-wpm="{{ row.wpm }}"
+                  data-row-wcm="{{ row.wcm }}"
+                  data-current-value="{{ row[column] }}"
+                  data-origflag="{{ row['origflag'] }}"
+                  {{ ('data-summary-atyp-select data-detail-group="' ~ detail_group ~ '"' if is_summary)|safe }}>
+            {% set _atyp_options = ['A', 'T', 'X'] if row['flag'] in ['A', 'T'] else [row['flag']] %}
+            {% for option in _atyp_options %}
+              <option value="{{ option }}" {{ 'selected' if option == row[column] else '' }}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        {% elif column == 'dwght' %}
+          {% if row['dwght'] != row['origdwght'] and row['origdwght'] != 0 and row['flag'] == row['origflag'] and row['flag'] == 'T' %}
+            <span class="dw-dif">{{ row[column] if row[column] }}</span>
+          {% else %}
+            {{ row[column] if (row[column] and row[column] != 1) }}
+          {% endif %}
+        {% elif column in ['pm_flag','prior_flag'] %}
+          {% if row[column] != row['flag'] %}
+            <span class="pflagdiff">{{ row[column] if row[column] }}</span>
+          {% else %}
+            {{ row[column] if row[column] }}
+          {% endif %}
+        {% else %}
+          {% if row[column] and row[column] is number %}
+          <!-- if row[column] is number or row[column]|float(default=none) is not none -->
+            {% set number = row[column] | float %}
+            {% if number != 0 %}
+              {% if number % 1 != 0 %}
+                {{ "%.2f" | format(number) }}
+              {% else %}
+                {{ "{:,.0f}".format(number) if not ((column == 'drr' or column.endswith('dwght')) and number == 1) else ''}}
+              {% endif %}
+            {% endif %}
+          {% else %}
+            {{ row[column] if row[column] else '' }}
+          {% endif %}
+        {% endif %}
+      </td>
+    {% endfor %}
+    <td class="change-cell">
+      {% if row.wotm|int > 0 %}
+        <span class="change-arrow is-up" aria-label="Positive change">&#9650;</span>
+      {% elif row.wotm|int < 0 %}
+        <span class="change-arrow is-down" aria-label="Negative change">&#9660;</span>
+      {% endif %}
+    </td>
+    <td class="history-cell">
+      <a class="history-link-button"
+         href="{{ row._history_url }}"
+         target="_blank"
+         rel="noopener noreferrer">History</a>
+    </td>
+  </tr>
+{% endmacro %}

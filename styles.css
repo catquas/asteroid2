@@ -1,0 +1,1075 @@
+:root {
+  /* Shared colors and shadow values used throughout the page. */
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --ink: #1b2430;
+  --muted: #637083;
+  --line: #d9dee7;
+  --accent: #0f766e;
+  --accent-dark: #115e59;
+  --accent-detail: #0284c7;
+  --accent-detail-dark: #0369a1;
+  /* --accent-single: #581c87;
+  --accent-single-dark: #3b0764; */
+  --accent-single: #5b3e70;
+  --accent-single-dark: #3c244d;
+  --shadow: 0 10px 28px rgba(27, 36, 48, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.4;
+}
+
+/* Top filter bar */
+
+.filter-bar {
+  /* Keep filters visible while scrolling wide tables below. */
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgba(27, 36, 48, 0.02);
+  height: 90px; /* must be same as sticky table header offset to stick together */
+}
+
+
+
+
+
+
+
+/* .site-header {
+  position: fixed; 
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px; 
+  background-color: #2c3e50;
+  color: white;
+  z-index: 100; 
+} */
+
+/* 2. Push content down so it isn't hidden behind the fixed header */
+/* .content {
+  margin-top: 60px; 
+  padding: 20px;
+} */
+
+/* 3. Freeze the Table Headers */
+thead.sticker th {
+  position: sticky;
+  top: 90px; /* MUST match the height of your website header */
+  background-color: #ecf0f1; /* Prevents text bleeding from underlying rows */
+  color: #333;
+  z-index: 10; /* Keeps table header above table rows, but below site header */
+  padding: 10px;
+  box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4); /* Optional: distinct bottom edge */
+}
+
+
+
+
+
+
+
+
+
+
+.filter-form {
+  /* The filter controls wrap instead of shrinking until labels become unreadable. */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: min(1940px, 100%);
+  margin: 0 auto;
+  padding: 14px 18px;
+}
+
+label {
+  display: grid;
+  flex: 0.75 1 110px;
+  gap: 5px;
+  min-width: 0;
+}
+
+label.is-wide {
+  flex: 2.5 1 480px;
+}
+
+label.is-state {
+  flex: 1.12 1 170px;
+}
+
+label.is-datatype {
+  flex: 0 0 auto;
+}
+
+label.is-year {
+  flex-basis: 130px;
+}
+
+label.is-month {
+  flex-basis: 155px;
+}
+
+label.is-closing {
+  flex: 0 0 auto;
+}
+
+.checkbox-field {
+  flex: 0 0 auto;
+}
+
+.checkbox-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  width: max-content;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: none;
+}
+
+.checkbox-control input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+label span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+select,
+button {
+  min-height: 40px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+select {
+  padding: 0 24px 0 10px;
+}
+
+.step-select {
+  /* Previous button, select, next button. */
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 30px;
+  gap: 0;
+  min-width: 0;
+}
+
+.datatype-buttons,
+.closing-buttons {
+  /* Button groups replace selects for small fixed option sets. */
+  display: grid;
+  grid-auto-flow: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.datatype-buttons {
+  grid-auto-columns: 54px;
+}
+
+.closing-buttons {
+  grid-auto-columns: 40px;
+}
+
+.datatype-button,
+.closing-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.datatype-button:hover,
+.closing-button:hover {
+  border-color: var(--accent);
+  background: #eef8f6;
+  color: var(--accent-dark);
+}
+
+.datatype-button:focus,
+.closing-button:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
+  outline: none;
+}
+
+.datatype-button.is-active,
+.closing-button.is-active {
+  border-color: var(--accent);
+  background: #e6f4f1;
+  color: var(--accent-dark);
+  box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.22);
+  font-weight: 800;
+}
+
+.datatype-button.is-active:focus,
+.closing-button.is-active:focus {
+  box-shadow:
+    inset 0 0 0 1px rgba(15, 118, 110, 0.22),
+    0 0 0 3px rgba(15, 118, 110, 0.22);
+}
+
+.step-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  width: 30px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--accent);
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.step-button:hover {
+  border-color: var(--accent);
+  background: #eef8f6;
+}
+
+.step-button:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
+  outline: none;
+}
+
+.step-button.is-disabled {
+  color: #a8b1bf;
+  background: #f2f4f7;
+  cursor: default;
+  pointer-events: none;
+}
+
+select:focus,
+button:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
+  outline: none;
+}
+
+button {
+  align-self: end;
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button:hover {
+  background: var(--accent-dark);
+}
+
+button.expand-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  width: auto;
+  min-width: 58px;
+  padding: 0 9px;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--accent);
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
+button.expand-button:hover {
+  background: #eef8f6;
+  color: var(--accent-dark);
+}
+
+.history-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.history-link-button:hover,
+.history-link-button:focus {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+  outline: none;
+}
+
+tr.is-single .history-link-button {
+  background: var(--accent-single);
+  border-color: var(--accent-single);
+}
+tr.is-single .history-link-button:hover,
+tr.is-single .history-link-button:focus {
+  background: var(--accent-single-dark);
+  border-color: var(--accent-single-dark);
+}
+
+tr.sample-detail-detail-row .history-link-button {
+  background: var(--accent-detail);
+  border-color: var(--accent-detail);
+}
+tr.sample-detail-detail-row .history-link-button:hover,
+tr.sample-detail-detail-row .history-link-button:focus {
+  background: var(--accent-detail-dark);
+  border-color: var(--accent-detail-dark);
+}
+
+
+/* Page shell and shared table framing */
+
+main {
+  /* Most content is centered, while very wide tables opt out below. */
+  width: min(1180px, calc(100% - 32px));
+  margin: 26px auto 48px;
+}
+
+.summary,
+article {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.summary {
+  /* max-content lets the top matter table size to its columns. */
+  padding: 0;
+  overflow: visible;
+  width: max-content;
+  max-width: none;
+  margin-left: 50%;
+  transform: translateX(-50%);
+}
+
+#history-table {
+  width: max-content;
+  margin-left: 50%;
+  transform: translateX(-50%)
+}
+
+h1,
+h2 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: 1.35rem;
+}
+
+h2 {
+  font-size: 1.07rem;
+}
+
+/* Series info section */
+
+.series-info-wrap {
+  display: flex;
+  justify-content: center;
+  overflow: visible;
+}
+
+.series-info-table {
+  width: max-content;
+  min-width: 0;
+  border-collapse: collapse;
+}
+
+.series-info-table th,
+.series-info-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.series-info-table th {
+  min-width: max-content;
+  background: #f6f8fb;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+/* .series-info-table td {
+  font-weight: 700;
+} */
+
+.flag-chg-uis {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.flag-chg-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 34px;
+  padding: 3px 7px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: var(--text);
+  line-height: 1;
+}
+
+.flag-chg-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.flag-chg-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.pflagdiff {
+  font-weight: bold;
+}
+
+.series-info-table th:last-child,
+.series-info-table td:last-child {
+  border-right: 0;
+}
+
+.series-info-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.series-info-table td {
+  max-width: 400px;           /* Set your maximum width limit */
+  white-space: normal;
+  overflow-wrap: break-word;  /* Force normal text to wrap at the limit */
+  word-break: break-word;     /* Fallback to ensure long words also break */
+}
+
+
+/* Middle tables section */
+.middle-tables {
+  display: grid;
+  grid-template-columns: repeat(3, max-content); 
+  gap: 18px;
+  width: max-content;
+  max-width: none;
+  margin-top: 18px;
+  margin-left: 50%;
+  transform: translateX(-50%);
+}
+
+/* .middle-tables { */
+  /* These three tables are intentionally wider than main on desktop. */
+  /* display: grid; */
+  /* grid-template-columns: minmax(285px, 0.8fr) minmax(560px, 1.6fr) minmax(230px, 0.65fr); */
+  /* gap: 18px; */
+  
+  /* width: calc(100vw - 32px); */
+  
+  /* width: max-content;
+  max-width: none;
+
+  margin-top: 18px;
+  margin-left: 50%;
+  transform: translateX(-50%);
+} */
+
+.sample-detail-table {
+  /* The sample detail summary can be wider than the viewport, so it sizes to content. */
+  width: max-content;
+  max-width: none;
+  margin-top: 18px;
+  margin-left: 50%;
+  transform: translateX(-50%);
+}
+
+.line-graph {
+  margin-top: 18px;
+  position: relative;
+  width: 90vw;
+  left: 50%;
+  transform: translateX(-50%); /* Shifts exactly half its own width backward */
+}
+
+#show-otm {
+  /* height: 20px; */
+  min-height: 20px;
+}
+
+#est-hist {
+  padding-bottom: 10px;
+  padding-top: 10px;
+}
+
+
+article {
+  min-width: 0;
+  overflow: visible;
+}
+
+.table-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.table-heading span {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.table-heading .table-header-value {
+  color: var(--accent);
+  font-size: .92rem;
+  font-weight: 700;
+  justify-self: end;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* Graph section */
+
+.chart-legend {
+  /* app.js fills this with toggle buttons after Chart.js is initialized. */
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.chart-legend-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  width: auto;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.chart-legend-button:hover {
+  border-color: var(--line);
+  background: #f8fafc;
+  color: var(--ink);
+}
+
+.chart-legend-button:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
+  outline: none;
+}
+
+.chart-legend-button.is-hidden {
+  opacity: 0.45;
+}
+
+.legend-swatch {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--swatch-color);
+}
+
+.legend-swatch.is-dotted {
+  height: 0;
+  border-top: 3px dotted var(--swatch-color);
+  background: transparent;
+}
+
+.chart-wrap {
+  overflow-x: auto;
+  padding: 14px 16px 12px;
+  /* width: 90vw; */
+}
+
+.time-series-chart {
+  /* Chart.js draws into this canvas; the minimum width keeps labels legible. */
+  display: block;
+  min-width: 760px;
+  width: 100%;
+  height: 320px;
+}
+
+.graph-data-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 0 16px 14px;
+  overflow: visible;
+}
+
+.graph-data-table {
+  width: max-content;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.graph-data-table th,
+.graph-data-table td {
+  padding: 8px 10px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.graph-data-table thead th {
+  min-width: max-content;
+  background: #f6f8fb;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.graph-data-table td {
+  font-weight: 700;
+}
+
+.graph-data-table tr > *:last-child {
+  border-right: 0;
+}
+
+.graph-data-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.chart-empty {
+  margin: 18px;
+}
+
+/* Table layout shared by middle and sample detail sections */
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.middle-tables article,
+.middle-tables .table-wrap {
+  /* Allow full-width tables to show instead of clipping inside their cards. */
+  overflow: visible;
+}
+
+.sample-detail-table article,
+.sample-detail-table .table-wrap {
+  overflow: visible;
+}
+
+.sample-detail-table table {
+  width: max-content;
+  min-width: 0;
+}
+
+.middle-tables .table-heading {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1rem;
+}
+
+th,
+td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+th {
+  background: #f0f3f7;
+  color: #344054;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+/* tr.pub-row td:first-of-type, */
+tr.pub-row td:nth-of-type(3) {
+  font-size: 1.2rem !important;
+}
+
+.middle-table th,
+.middle-table td {
+  padding: 10px 16px;
+}
+
+.middle-table th {
+  font-size: 0.84rem;
+}
+
+.middle-table td {
+  font-size: 1rem;
+}
+
+.middle-table tbody th {
+  color: #344054;
+  font-weight: 700;
+  text-transform: none;
+}
+
+.middle-table .is-ratio-row td {
+  /* Ratio rows are visually distinct from plain numeric rows. */
+  color: #1d4ed8;
+  /* font-weight: 700; */
+}
+
+.middle-table tbody tr.has-section-separator th,
+.middle-table tbody tr.has-section-separator td {
+  border-top: 2px solid #8b95a5;
+}
+
+.middle-table tbody tr.prelim-vals th,
+.middle-table tbody tr.prelim-vals td {
+  color: oklch(from var(--ink) calc(l + 0.2) c h);
+  /* color: lightslategrey; */
+  font-style: italic;
+}
+
+th.pvals,
+td.pvals {
+  /* color: lightslategrey; */
+  color: oklch(from var(--ink) calc(l + 0.2) c h);
+  font-style: italic;
+}
+
+.middle-table td.is-highlighted {
+  /* app.py marks tolerance cells when Macro CM falls outside the band. */
+  background: #fef08a;
+}
+
+.middle-table tr.is-new-recalc th,
+.middle-table tr.is-new-recalc td {
+  /* N-Recalc is inserted by app.js after an ATYP change. */
+  color: #b91c1c;
+}
+
+/* Sample detail table */
+
+.row-kind-heading,
+.row-kind-cell,
+.change-heading,
+.change-cell,
+.history-heading,
+.history-cell {
+  width: 1%;
+  text-align: center;
+}
+
+.row-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.row-badge.is-detail {
+  background: #e7f0ff;
+  color: #1d4ed8;
+}
+
+.sample-detail-summary-row.is-summary td.pvals {
+  /* font-weight: 700; */
+  color: oklch(from var(--accent-dark) calc(l + 0.15) c h);
+}
+
+.sample-detail-summary-row.is-summary select,
+.sample-detail-summary-row.is-summary td {
+  color: oklch(from var(--accent-dark) calc(l - 0.05) c h);
+  /* color: var(--accent-dark); */
+}
+
+.sample-detail-detail-row td {
+  background: #f8fbff;
+  color: #30415d;
+}
+
+.sample-detail-detail-row td.pvals {
+  background: #f8fbff;
+  color: oklch(from #30415d calc(l + 0.15) c h);
+}
+
+.sample-detail-detail-row td:first-child {
+  border-left: 4px solid #60a5fa;
+}
+
+.sample-detail-detail-row td:nth-child(2) {
+  padding-left: 28px;
+}
+
+.wotm {
+  text-align: right; 
+}
+
+.change-heading, .change-cell {
+  padding: 0%;
+}
+
+span.dw-dif {
+  /* Shows when the current dwght value differs from the original dwght value. */
+  border-color: #ca8a04;
+  background: #fef08a;
+  color: var(--ink);
+  padding: 7px;
+}
+
+.atyp-flag-select {
+  min-height: 30px;
+  width: 58px;
+  padding: 0 22px 0 8px;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.atyp-flag-select.is-atyp-mismatch {
+  /* Shows when the current ATYP flag value differs from the original flag value. */
+  border-color: #ca8a04;
+  background: #fef08a;
+  color: var(--ink);
+}
+
+.atyp-flag-select.is-atyp-mismatch:focus {
+  border-color: #ca8a04;
+  box-shadow: 0 0 0 3px rgba(202, 138, 4, 0.22);
+}
+
+.atyp-flag-select.is-atyp-mismatch:disabled {
+  opacity: 0.72;
+}
+
+.change-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.change-arrow.is-up {
+  color: #15803d;
+}
+
+.change-arrow.is-down {
+  color: #dc2626;
+}
+
+.sample-history-page section {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.sample-history-page h1 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.history-params {
+  display: grid;
+  /* grid-template-columns: repeat(4, minmax(0, 1fr)); */
+  grid-template-columns: 1fr 4fr 1fr 1fr;
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.history-params div {
+  padding: 12px 14px;
+  border-right: 1px solid var(--line);
+}
+
+.history-params div:last-child {
+  border-right: 0;
+}
+
+.history-params dt {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.history-params dd {
+  min-height: 1.2em;
+  margin: 0;
+  font-weight: 700;
+}
+
+.sample-history-chart-wrap {
+  height: 320px;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sample-history-chart {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.empty {
+  color: var(--muted);
+  font-style: italic;
+  text-align: center;
+}
+
+@media (max-width: 1040px) {
+  /* Stack the wide table areas before they become cramped. */
+  label.is-wide {
+    flex-basis: 480px;
+  }
+
+  .middle-tables {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Unlocks the max width constraint specifically for the sample history page */
+main.sample-history-page {
+  /* width: calc(100% - 32px); */
+    width: max-content;
+  max-width: 1940px; /* Matches the limit used in your filter form */
+}
+
+.sample-history-table {
+  width: max-content;
+  /* width: 100%; */
+}
+
+.sample-history-table td, th {
+  padding: 11px 16px;
+}
+
+.graph-data-wrap {
+  padding: 0px;
+}
+
+.emojis {
+  font-size: 1.5em;
+}
+span.hiddenit {
+  display: none;
+}
+span.otm-val {
+  color:#115e59;
+}
+  @media (max-width: 620px) {
+  /* Mobile layout: filters stay pinned and use two-column rows. */
+
+  label,
+  label.is-state {
+    flex-basis: calc(50% - 6px);
+  }
+
+  .checkbox-field {
+    flex-basis: auto;
+  }
+
+  label.is-wide {
+    flex-basis: 100%;
+  }
+
+  main {
+    width: min(100% - 20px, 1180px);
+    margin-top: 16px;
+  }
+
+  .table-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .chart-legend {
+    justify-content: flex-start;
+  }
+
+}

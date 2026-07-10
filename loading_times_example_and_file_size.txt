@@ -1,0 +1,22 @@
+nav Total loading time: 0.21 seconds
+serieshist Total loading time: 0.02 seconds
+estimate_info Total loading time: 0.09 seconds
+estimate_info Total loading time: 0.16 seconds
+flagsum Total loading time: 0.26 seconds
+signsum Total loading time: 0.31 seconds
+pmcovg Total loading time: 0.33 seconds
+samplesummary Total loading time: 0.33 seconds
+ui Total loading time: 1.61 seconds
+etc Total loading time: 1.61 seconds
+input tables Total loading time: 1.83 seconds
+before return templates Total loading time: 1.84 seconds
+
+****approximate records (rows) and columns (variables):
+estimates_current: 10 million records, 50 columns
+matched_sample_current: 50 million records, 50 columns
+sam3_y1_current: 200 thousand records, 50 columns
+small_domain_model_current: 30 thousand records, 20 columns
+area_ser_struct: 500 thousand records, 20 columns
+salist: 5 thousand records, 10 columns
+series_title: 10 thousand records, 10 columns
+
