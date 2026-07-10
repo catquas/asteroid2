@@ -351,7 +351,10 @@ def state_option_items(df: pl.DataFrame) -> list[dict[str, str]]:
 # --- preload and lookup tables ---
 
 # These are the main sources for the filter options.
-STATE_AREA_SERIES_LF = get_estimate_data.get_state_area_series_lf()
+# Materialized once at startup: this table is static per server start, and each
+# request collects it several times (area/series/datatype options plus nav), which
+# would otherwise re-scan the structure and estimates parquets every time.
+STATE_AREA_SERIES_LF = get_estimate_data.get_state_area_series_lf().collect().lazy()
 YEAR_MONTH_CLOSING_DF = get_estimate_data.get_year_month_closing_df()
 
 # These are lookup tables for display labels and drill-through links.

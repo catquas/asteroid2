@@ -147,7 +147,9 @@ def get_structure(bmrkyr: str):
     return structure
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-structure = get_structure(bmrkyr='2025')
+# Materialized once at startup: every request collects queries built on this,
+# and keeping it lazy re-reads area_ser_struct/salist/series_title on each collect.
+structure = get_structure(bmrkyr='2025').collect().lazy()
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
@@ -334,7 +336,9 @@ def get_input_data(selected: dict) -> tuple[dict[str, pl.DataFrame], pl.LazyFram
         )
         return series_estimates
     
-    series_estimates_lf: pl.LazyFrame = get_series_estimates(selected, bmrkyr)
+    # Collect the single-series slice once; several queries below (series history,
+    # estimate info for each closing) would otherwise each re-scan the estimates parquet.
+    series_estimates_lf: pl.LazyFrame = get_series_estimates(selected, bmrkyr).collect().lazy()
 
     #OT, Amt: 912, Type: OTMC  {MS}  removing
     #RW, Amt: 352, adj Y1 weight to unweighted sample coverage of 0.126337 {SR} , This NAICS is causing 50-000000 to be stronger.
@@ -906,7 +910,10 @@ def get_input_data(selected: dict) -> tuple[dict[str, pl.DataFrame], pl.LazyFram
         )
         return weighted
     
-    weighted_sample_state_area_series_dt: pl.LazyFrame = get_weighted_sample_data(selected, bmrkyr)
+    # Collect the single-series slice of the matched sample once. This is by far the
+    # biggest page-load cost when left lazy: flagsum/signsum/pmcovg and the three
+    # sample-detail queries each re-scan the ~50M-row matched sample parquet.
+    weighted_sample_state_area_series_dt: pl.LazyFrame = get_weighted_sample_data(selected, bmrkyr).collect().lazy()
 
     weighted_cm = (
         weighted_sample_state_area_series_dt
