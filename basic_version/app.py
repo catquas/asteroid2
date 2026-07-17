@@ -47,8 +47,8 @@ def line_graph_context(ts_df: pl.DataFrame) -> dict:
         "labels": labels,
         "datasets": [
             {
-                "label": "Employment",
-                "data": sorted_df.get_column("emp").to_list(),
+                "label": "Estimate",
+                "data": sorted_df.get_column("estimate").to_list(),
                 "borderColor": "#f97316",
             },
             {
