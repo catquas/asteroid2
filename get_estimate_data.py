@@ -2,6 +2,7 @@ import polars as pl
 import polars.selectors as cs
 import time
 from pathlib import Path
+from transforms import add_sample_weights
 # from pprint import pprint
 
 aceslib_path = Path("/aceslib")
@@ -871,7 +872,7 @@ def get_input_data(selected: dict) -> tuple[dict[str, pl.DataFrame], pl.LazyFram
                 ])
             )
 
-        weighted = (
+        weighted = add_sample_weights(
             matched_sample_lf
             .filter(
                 pl.col("state_fips_code") == selected["state"],
@@ -881,27 +882,6 @@ def get_input_data(selected: dict) -> tuple[dict[str, pl.DataFrame], pl.LazyFram
                 # pl.col("year") == selected["cy"],
                 # pl.col("month") == selected["cm"],
                 # pl.col("estimate_type_code") == selected["closing"],
-            )
-            .with_columns(
-                pl.when(pl.col("cont_tot_dwnwght") == 0)
-                .then(pl.lit(1.0))
-                .otherwise(pl.col("cont_tot_dwnwght"))
-                .alias("cont_tot_dwnwght")
-            )
-            .with_columns(
-                wgt = (pl.col("sample_weight") * pl.col("diff_resp_rate") * pl.col("cont_tot_dwnwght"))
-            )
-            .with_columns(
-                pl.when(pl.col("a_typ_flag") == "T")
-                .then(pl.struct(wpm=(pl.col("pm_value") * pl.col("wgt")), wcm=(pl.col("cm_value") * pl.col("wgt"))))
-                .when(pl.col("a_typ_flag") == 'A')
-                .then(pl.struct(wpm=pl.col("pm_value"), wcm=pl.col("cm_value")))
-                .otherwise(pl.struct(wpm=0, wcm=0))
-                .struct.unnest()
-            )
-            .with_columns(
-                # Changed pl.col.wcm to pl.col("wcm")
-                wotm = (pl.col("wcm") - pl.col("wpm")).round()
             )
         )
         return weighted
