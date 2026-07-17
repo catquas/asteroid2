@@ -22,31 +22,31 @@
       </section>
 
       <section class="table-section">
-        <h2>Sum by UI</h2>
-        <table class="ui-table">
+        <h2>Sum by Parent Report</h2>
+        <table class="parent-report-table">
           <thead>
             <tr>
               <th class="expand-cell"></th>
-              {% for column in ui_columns %}
+              {% for column in parent_report_columns %}
                 <th>{{ column }}</th>
               {% endfor %}
             </tr>
           </thead>
           <tbody>
-            {% for row in ui_rows %}
-              <tr class="ui-summary-row" data-ui-row="{{ row.ui }}">
+            {% for row in parent_report_rows %}
+              <tr class="parent-report-summary-row" data-parent-report-row="{{ row.parent_report }}">
                 <td class="expand-cell">
                   {% if row.report_count > 1 %}
                     <button
                       type="button"
                       class="expand-button"
                       data-toggle-details
-                      data-row-ui="{{ row.ui }}"
+                      data-row-parent-report="{{ row.parent_report }}"
                       aria-expanded="false"
                     ><span class="expand-icon">+</span></button>
                   {% endif %}
                 </td>
-                {% for column in ui_columns %}
+                {% for column in parent_report_columns %}
                   <td>{{ row[column] }}</td>
                 {% endfor %}
               </tr>

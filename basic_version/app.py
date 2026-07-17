@@ -11,10 +11,10 @@ BASE_DIR = Path(__file__).resolve().parent
 
 # --- Input tables ---
 
-# Sample table: one row per report. A ui can have multiple reports.
+# Sample table: one row per report. A parent_report can have multiple reports.
 SAMPLE_TABLE = pl.read_csv(
     BASE_DIR / "sample_table.csv",
-    schema_overrides={"ui": pl.String, "report": pl.String},
+    schema_overrides={"parent_report": pl.String, "report": pl.String},
 )
 
 # Time series table: one row per month.
@@ -23,17 +23,17 @@ TIME_SERIES_TABLE = pl.read_csv(BASE_DIR / "time_series_table.csv")
 MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
-def sum_by_ui(sample_df: pl.DataFrame) -> pl.DataFrame:
-    # Sum the report-level sample rows up to one row per ui.
+def sum_by_parent_report(sample_df: pl.DataFrame) -> pl.DataFrame:
+    # Sum the report-level sample rows up to one row per parent_report.
     return (
-        sample_df.group_by("ui")
+        sample_df.group_by("parent_report")
         .agg(
             pl.len().alias("report_count"),
             pl.col("pm").sum(),
             pl.col("cm").sum(),
             pl.col("otm").sum(),
         )
-        .sort("ui")
+        .sort("parent_report")
     )
 
 
@@ -62,8 +62,8 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 
-class UiDetailsRequest(BaseModel):
-    ui: str
+class ParentReportDetailsRequest(BaseModel):
+    parent_report: str
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -73,20 +73,21 @@ async def index(request: Request) -> HTMLResponse:
         "index.html",
         {
             "line_graph": line_graph_context(TIME_SERIES_TABLE),
-            "ui_columns": ["ui", "report_count", "pm", "cm", "otm"],
-            "ui_rows": sum_by_ui(SAMPLE_TABLE).to_dicts(),
+            "parent_report_columns": ["parent_report", "report_count", "pm", "cm", "otm"],
+            "parent_report_rows": sum_by_parent_report(SAMPLE_TABLE).to_dicts(),
         },
     )
 
 
-@app.post("/api/ui-details", response_class=HTMLResponse)
-async def api_ui_details(payload: UiDetailsRequest) -> HTMLResponse:
-    # Return rendered <tr> elements for the reports behind one ui.
-    details_df = SAMPLE_TABLE.filter(pl.col("ui") == payload.ui).sort("report")
-    html = templates.env.get_template("_ui_detail_rows.html").render(
-        detail_columns=["report", "pm", "cm", "otm"],
+@app.post("/api/parent-report-details", response_class=HTMLResponse)
+async def api_parent_report_details(payload: ParentReportDetailsRequest) -> HTMLResponse:
+    # Return rendered <tr> elements for the reports behind one parent_report.
+    details_df = SAMPLE_TABLE.filter(
+        pl.col("parent_report") == payload.parent_report
+    ).sort("report")
+    html = templates.env.get_template("_parent_report_detail_rows.html").render(
         detail_rows=details_df.to_dicts(),
-        ui=payload.ui,
+        parent_report=payload.parent_report,
     )
     return HTMLResponse(html)
 

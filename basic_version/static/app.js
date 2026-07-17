@@ -21,21 +21,21 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// --- Lazy ui detail expansion ---
+// --- Lazy parent_report detail expansion ---
 
-// Plus button on a ui summary row loads that ui's report rows from the API.
+// Plus button on a parent_report summary row loads that parent_report's report rows from the API.
 document.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-toggle-details]");
   if (!button) {
     return;
   }
 
-  const ui = button.dataset.rowUi;
+  const parentReport = button.dataset.rowParentReport;
   const isExpanded = button.getAttribute("aria-expanded") === "true";
   const summaryRow = button.closest("tr");
   const icon = button.querySelector(".expand-icon");
   const removeDetailRows = () => {
-    document.querySelectorAll(`[data-detail-row="${ui}"]`).forEach((row) => {
+    document.querySelectorAll(`[data-detail-row="${parentReport}"]`).forEach((row) => {
       row.remove();
     });
   };
@@ -52,7 +52,7 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
-  if (!ui || !summaryRow || button.disabled) {
+  if (!parentReport || !summaryRow || button.disabled) {
     return;
   }
 
@@ -60,10 +60,10 @@ document.addEventListener("click", async (event) => {
   removeDetailRows();
 
   try {
-    const response = await fetch("/api/ui-details", {
+    const response = await fetch("/api/parent-report-details", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ui }),
+      body: JSON.stringify({ parent_report: parentReport }),
     });
 
     if (!response.ok) {
@@ -74,7 +74,7 @@ document.addEventListener("click", async (event) => {
     summaryRow.insertAdjacentHTML("afterend", html);
     setExpanded(true);
   } catch (error) {
-    console.error("Failed to load ui details", error);
+    console.error("Failed to load parent_report details", error);
   } finally {
     button.disabled = false;
   }

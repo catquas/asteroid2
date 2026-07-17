@@ -1,0 +1,11 @@
+{# Detail <tr> fragments for one expanded parent_report, inserted after its summary row. #}
+{% for row in detail_rows %}
+  <tr class="parent-report-detail-row" data-detail-row="{{ parent_report }}">
+    <td class="expand-cell"></td>
+    <td class="detail-report">{{ parent_report }}-{{ row.report }}</td>
+    <td></td>
+    <td>{{ row.pm }}</td>
+    <td>{{ row.cm }}</td>
+    <td>{{ row.otm }}</td>
+  </tr>
+{% endfor %}
