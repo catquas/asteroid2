@@ -50,7 +50,12 @@ def line_graph_context(ts_df: pl.DataFrame) -> dict:
                 "label": "Employment",
                 "data": sorted_df.get_column("emp").to_list(),
                 "borderColor": "#f97316",
-            }
+            },
+            {
+                "label": "Benchmark",
+                "data": sorted_df.get_column("benchmark").to_list(),
+                "borderColor": "#15803d",
+            },
         ],
     }
 
