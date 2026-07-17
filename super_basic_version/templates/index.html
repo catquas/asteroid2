@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Super Basic Version</title>
+  </head>
+  <body>
+    <h1>Sample Table</h1>
+    <table border="1" cellspacing="0" cellpadding="4">
+      <thead>
+        <tr>
+          {% for column in columns %}
+            <th>{{ column }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            {% for column in columns %}
+              <td>{{ row[column] }}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
+</html>
