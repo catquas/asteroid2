@@ -15,6 +15,7 @@ os.environ["POLARS_VERBOSE_TRACEBACK"] = "0"
 import polars as pl
 from polars import selectors as cs
 import get_estimate_data
+from transforms import add_sample_weights
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -176,34 +177,13 @@ def get_weighted_sample_data(year, month, closing, bmrkyr) -> pl.LazyFrame:
             ])
         )
 
-    weighted = (
+    weighted = add_sample_weights(
         matched_sample_lf
         .filter(
             pl.col("state_fips_code") == '12',
             pl.col.year == year,
             pl.col.month == month,
             pl.col.estimate_type_code == closing
-        )
-        .with_columns(
-            pl.when(pl.col("cont_tot_dwnwght") == 0)
-            .then(pl.lit(1.0))
-            .otherwise(pl.col("cont_tot_dwnwght"))
-            .alias("cont_tot_dwnwght")
-        )
-        .with_columns(
-            wgt = (pl.col("sample_weight") * pl.col("diff_resp_rate") * pl.col("cont_tot_dwnwght"))
-        )
-        .with_columns(
-            pl.when(pl.col("a_typ_flag") == "T")
-            .then(pl.struct(wpm=(pl.col("pm_value") * pl.col("wgt")), wcm=(pl.col("cm_value") * pl.col("wgt"))))
-            .when(pl.col("a_typ_flag") == 'A')
-            .then(pl.struct(wpm=pl.col("pm_value"), wcm=pl.col("cm_value")))
-            .otherwise(pl.struct(wpm=0, wcm=0))
-            .struct.unnest()
-        )
-        .with_columns(
-            # Changed pl.col.wcm to pl.col("wcm")
-            wotm = (pl.col("wcm") - pl.col("wpm")).round()
         )
     )
     return weighted
