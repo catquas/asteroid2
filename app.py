@@ -15,6 +15,14 @@ os.environ["POLARS_VERBOSE_TRACEBACK"] = "0"
 import polars as pl
 from polars import selectors as cs
 import get_estimate_data
+from dropdown_logic import (
+    first_or_current,
+    max_or_current,
+    max_value,
+    month_target,
+    numeric_previous_next,
+    previous_next,
+)
 from transforms import add_sample_weights
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -755,70 +763,6 @@ def series_option_items(options: list[str], seriestypes: dict[str, str]) -> list
         for option in options
     ]
 
-def closest_match(option_list, query, min_len=1):
-    # print('query ', query)
-    # Check prefixes of the query from min_len up to the full length
-    for j in range(len(query) + 1, min_len, -1):
-        prefix = query[:j]
-        # print("prefix", prefix)        
-        # Scan the list and immediately return the first string that contains this prefix
-        for option in option_list:
-            if option.startswith(prefix):
-                return option  # Wrapped in a list to match your desired format
-            elif prefix in ['31', '32', '41', '42', '43']:
-                if option.startswith(prefix[:1]):
-                    return option
-                
-    return ''  # Return empty list if no valid prefix matches
-
-
-def first_or_current(options: list[str], current: str | None, bestop=False) -> str:
-    # Keep a user's current query value when valid; 
-    # otherwise the closest option
-    # otherwise fall back to the first available option 
-    # so the page always has a usable selection.
-    # print('xxxxxxxxx', options, '       xx', current)
-    # print('zzzzzzz ', bestop , '   sdfsdf')
-    if current in options:
-        return current
-    elif bestop and current:
-        bestoption = closest_match(options, current)
-        if bestoption != '':
-            return bestoption
-
-    return options[0] if options else ""
-
-
-def max_or_current(options: list[str], current: str | None) -> str:
-    # Used where the default should be the latest/highest code rather than the
-    # first value, such as datatype or closing.
-    if current in options:
-        return current
-    if not options:
-        return ""
-
-    return max_value(options)
-
-
-def max_value(options: list[str]) -> str:
-    # Prefer numeric ordering for code-like values, falling back to text order.
-    return max(
-        options, key=lambda value: (0, int(value)) if value.isdigit() else (1, value)
-    )
-
-
-def previous_next(options: list[str], current: str) -> dict[str, str | None]:
-    # Finds the URLs' target values for left/right step buttons.
-    if current not in options:
-        return {"prev": None, "next": None}
-
-    index = options.index(current)
-    return {
-        "prev": options[index - 1] if index > 0 else None,
-        "next": options[index + 1] if index < len(options) - 1 else None,
-    }
-
-
 def datatype_button_items(
     options: list[str], selected: dict[str, str]
 ) -> list[dict[str, Any]]:
@@ -916,14 +860,6 @@ def max_datatype_for_area_series(state_df: pl.DataFrame, area: str, series: str)
     rows = filter_df(state_df, {"area": area, "series": series})
     options = unique_values(rows, "datatype")
     return max_value(options) if options else ""
-
-
-def numeric_previous_next(options: list[str], current: str) -> dict[str, str | None]:
-    # Numeric step buttons should move by numeric order, not string order
-    # ("10" should come after "9", not after "1").
-    return previous_next(
-        sorted((value for value in options if value.isdigit()), key=int), current
-    )
 
 
 def state_area_series_dt_context(query: Mapping[str, str | None]) -> dict[str, Any]:
@@ -1059,26 +995,6 @@ def date_context(query: Mapping[str, str | None]) -> dict[str, Any]:
     }
 
 
-def month_target(year: str, month: str, direction: str) -> tuple[str, str] | None:
-    # Month navigation wraps across years when the adjacent month is not in the
-    # current year's options.
-    print('month', month, ' ', maxmonth, 'year', year, ' ', maxyear)
-    if direction == "prev":
-        if month == '01' and year==startyear:
-            return None
-        elif month == '01':
-            return str(int(year)-1), '12'
-        else:
-            return year, str(int(month)-1).zfill(2)
-    else:
-        if month == maxmonth and year==maxyear:
-            return None
-        elif month == '12':
-            return str(int(year)+1), '01'
-        else:
-            return year, str(int(month)+1).zfill(2)
-
-
 def build_nav(
     selected: dict[str, str],
     state_area: dict[str, Any],
@@ -1194,7 +1110,10 @@ def build_nav(
             nav["year"][direction] = selection_url(selected, year=year, closing=closing)
 
     for direction in ("prev", "next"):
-        target = month_target(selected["year"], selected["month"], direction)
+        target = month_target(
+            selected["year"], selected["month"], direction,
+            startyear=startyear, maxyear=maxyear, maxmonth=maxmonth,
+        )
         print('23985472897354', 'direction ', direction, ' target ', target)
         if target:
             year, month = target
