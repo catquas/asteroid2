@@ -12,8 +12,29 @@
     <main>
       <h1>Basic Version</h1>
 
+      {# GET form: submitting sends ?data_series=...&sample_group=... to the main endpoint. #}
+      <form id="filters" class="filter-form" method="get" action="/">
+        <label>
+          data_series
+          <select name="data_series">
+            {% for option in data_series_options %}
+              <option value="{{ option }}" {% if option == selected_data_series %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          sample_group
+          <select name="sample_group">
+            {% for option in sample_group_options %}
+              <option value="{{ option }}" {% if option == selected_sample_group %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit">Submit</button>
+      </form>
+
       <section class="chart-section">
-        <h2>Time Series</h2>
+        <h2>Time Series: {{ selected_data_series }}</h2>
         <div class="chart-wrap">
           <canvas id="time-series-chart"></canvas>
         </div>
@@ -22,7 +43,7 @@
       </section>
 
       <section class="table-section">
-        <h2>Sum by Parent Report</h2>
+        <h2>Sum by Parent Report: {{ selected_sample_group }}</h2>
         <table class="parent-report-table">
           <thead>
             <tr>

@@ -71,15 +71,39 @@ class ParentReportDetailsRequest(BaseModel):
     parent_report: str
 
 
+DATA_SERIES_OPTIONS = (
+    TIME_SERIES_TABLE.get_column("data_series").unique(maintain_order=True).to_list()
+)
+SAMPLE_GROUP_OPTIONS = (
+    SAMPLE_TABLE.get_column("sample_group").unique(maintain_order=True).to_list()
+)
+
+
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request) -> HTMLResponse:
+async def index(
+    request: Request, data_series: str = "", sample_group: str = ""
+) -> HTMLResponse:
+    # The form submits data_series/sample_group as query params; invalid or
+    # missing values fall back to the first option so the page always renders.
+    if data_series not in DATA_SERIES_OPTIONS:
+        data_series = DATA_SERIES_OPTIONS[0]
+    if sample_group not in SAMPLE_GROUP_OPTIONS:
+        sample_group = SAMPLE_GROUP_OPTIONS[0]
+
+    time_series_df = TIME_SERIES_TABLE.filter(pl.col("data_series") == data_series)
+    sample_df = SAMPLE_TABLE.filter(pl.col("sample_group") == sample_group)
+
     return templates.TemplateResponse(
         request,
         "index.html",
         {
-            "line_graph": line_graph_context(TIME_SERIES_TABLE),
+            "data_series_options": DATA_SERIES_OPTIONS,
+            "sample_group_options": SAMPLE_GROUP_OPTIONS,
+            "selected_data_series": data_series,
+            "selected_sample_group": sample_group,
+            "line_graph": line_graph_context(time_series_df),
             "parent_report_columns": ["parent_report", "report_count", "pm", "cm", "otm"],
-            "parent_report_rows": sum_by_parent_report(SAMPLE_TABLE).to_dicts(),
+            "parent_report_rows": sum_by_parent_report(sample_df).to_dicts(),
         },
     )
 
