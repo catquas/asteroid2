@@ -58,13 +58,6 @@ h2 {
   text-align: right;
 }
 
-.parent-report-table th:first-child,
-.parent-report-table td:first-child,
-.parent-report-table th:nth-child(2),
-.parent-report-table td:nth-child(2) {
-  text-align: left;
-}
-
 .parent-report-table thead th {
   background: #f1f5f9;
   font-size: 0.85rem;
@@ -83,10 +76,6 @@ h2 {
   background: #ffffff;
   cursor: pointer;
   line-height: 1;
-}
-
-.expand-button:hover {
-  background: #eff6ff;
 }
 
 .parent-report-detail-row {
