@@ -58,12 +58,12 @@ document.addEventListener("click", async (event) => {
 
   button.disabled = true;
   removeDetailRows();
-
+  
   try {
     const response = await fetch("/api/parent-report-details", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ parent_report: parentReport }),
+      headers: { "Content-Type": "text/plain" },
+      body: parentReport,
     });
 
     if (!response.ok) {
