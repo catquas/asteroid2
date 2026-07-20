@@ -1,11 +1,11 @@
-# How basic_version works
+# How to Build a Web App With Python
 
-This is a small web app that reads two CSV files, draws a line graph, and shows a
-summary table with expandable rows. It demonstrates the core pattern used by a lot
-of Python web apps:
+This guide uses the **Polars** (data manipulation), **FastAPI** (web server), and **Jinja2** (HTML templates) 
+Python packages, as well as CSS and JavaScript. You can use Pandas instead of Polars with very few changes.
+It only goes over building the web app, not authentication or hosting the app on a permanant server.
 
-> **polars** (data) → **FastAPI** (web server) → **Jinja2** (HTML templates) → a bit
-> of **JavaScript** in the browser.
+For this guide, I have a basic example in GitLab which shows off many of the features of this method of
+building web apps.
 
 ## The files
 
@@ -17,42 +17,33 @@ basic_version/
 ├── static/
 │   ├── app.js                              # browser JS: chart + expand buttons
 │   └── styles.css                          # plain CSS
-└── templates/
+└── templates/                              # Jinja2 templates
     ├── index.html                          # the whole page
     └── _parent_report_detail_rows.html     # fragment: rows for one expanded group
 ```
 
-One process (`app.py`) does everything. The browser talks to it over HTTP, it does
-the data work in polars, and it sends back HTML.
+The starting point is `app.py`. First it imports and manipulates the CSV data using Polars. Then it uses that data 
+to build an html page using the `index.html` Jinja2 template. The page is formatted by `styles.css`. The `app.js`
+JavaScript code uses the data send by FastAPI to draw the graph. It also is triggered when the buttons are clicked
+to add sample detail rows to the sample table.
 
 ## 1. Reading the CSVs with polars
 
 ```python
-SAMPLE_TABLE = pl.read_csv(
-    BASE_DIR / "sample_table.csv",
-    schema_overrides={"parent_report": pl.String, "report": pl.String},
-)
+SAMPLE_TABLE = pl.read_csv(BASE_DIR / "sample_table.csv")
 
 TIME_SERIES_TABLE = pl.read_csv(BASE_DIR / "time_series_table.csv")
 ```
 
-polars is a DataFrame library (similar role to pandas). `pl.read_csv` returns a
-`DataFrame` — a table with named, typed columns.
-
-Two details worth noticing:
+Polars is a DataFrame library similar to pandas but often faster and arguably easier to understand. 
+`pl.read_csv` returns a `DataFrame` — a table with named, typed columns.
 
 - `BASE_DIR = Path(__file__).resolve().parent` is the folder `app.py` lives in.
   Building paths from it means the app works no matter which directory you launch
   it from. `Path` objects let you join paths with `/`, which is why
   `BASE_DIR / "sample_table.csv"` works.
-- `schema_overrides` forces `parent_report` and `report` to be read as strings.
-  Without it, polars would see `1000001` and `001` and guess "integer", and the
-  leading zeros in `report` would be lost.
 
-These two tables are read **once, at import time** (they're module-level
-variables, i.e. defined at the top of the file, not inside a function). Every
-request reuses them from memory. That's fine for read-only data; if the CSVs
-changed while the server ran, you'd have to restart to pick up the changes.
+`SAMPLE_TABLE` and `TIME_SERIES_TABLE` are global variables. Every HTML request reuses them from memory.
 
 ## 2. The two data-shaping functions
 
@@ -72,15 +63,10 @@ def sum_by_parent_report(sample_df: pl.DataFrame) -> pl.DataFrame:
     )
 ```
 
-This is polars' version of SQL's `GROUP BY`. For each distinct `parent_report`
-value it computes a row count (`pl.len()`) and the sums of the numeric columns.
-`.alias("report_count")` names the count column; the summed columns keep their
+For each distinct `parent_report` value, this step computes a row count (`pl.len()`) and the sums of the numeric 
+columns. `.alias("report_count")` names the count column; the summed columns keep their
 original names. The `report_count` is what the template later uses to decide
 whether a row gets a plus button.
-
-The `(sample_df.method().method().method())` style is *method chaining* — each
-method returns a new DataFrame, so you can keep going. The outer parentheses are
-only there so Python allows the line breaks.
 
 Note the function takes the DataFrame as a parameter instead of using
 `SAMPLE_TABLE` directly. That matters because the route filters the table by
