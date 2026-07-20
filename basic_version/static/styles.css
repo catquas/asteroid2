@@ -1,0 +1,100 @@
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0;
+  background: #f8fafc;
+  color: #111827;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+h1 {
+  font-size: 1.4rem;
+}
+
+h2 {
+  font-size: 1.1rem;
+}
+
+.filter-form {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.filter-form label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.chart-wrap {
+  height: 320px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+.parent-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.parent-report-table th,
+.parent-report-table td {
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: right;
+}
+
+.parent-report-table th:first-child,
+.parent-report-table td:first-child,
+.parent-report-table th:nth-child(2),
+.parent-report-table td:nth-child(2) {
+  text-align: left;
+}
+
+.parent-report-table thead th {
+  background: #f1f5f9;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.expand-cell {
+  width: 2rem;
+}
+
+.expand-button {
+  width: 1.4rem;
+  height: 1.4rem;
+  border: 1px solid #9ca3af;
+  border-radius: 4px;
+  background: #ffffff;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.expand-button:hover {
+  background: #eff6ff;
+}
+
+.parent-report-detail-row {
+  background: #f9fafb;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.detail-report {
+  padding-left: 1.25rem;
+}

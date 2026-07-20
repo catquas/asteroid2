@@ -1,0 +1,443 @@
+# How basic_version works
+
+This is a small web app that reads two CSV files, draws a line graph, and shows a
+summary table with expandable rows. It demonstrates the core pattern used by a lot
+of Python web apps:
+
+> **polars** (data) → **FastAPI** (web server) → **Jinja2** (HTML templates) → a bit
+> of **JavaScript** in the browser.
+
+## The files
+
+```
+basic_version/
+├── app.py                                  # the server: data + routes
+├── sample_table.csv                        # input: one row per report
+├── time_series_table.csv                   # input: one row per month per series
+├── static/
+│   ├── app.js                              # browser JS: chart + expand buttons
+│   └── styles.css                          # plain CSS
+└── templates/
+    ├── index.html                          # the whole page
+    └── _parent_report_detail_rows.html     # fragment: rows for one expanded group
+```
+
+One process (`app.py`) does everything. The browser talks to it over HTTP, it does
+the data work in polars, and it sends back HTML.
+
+## 1. Reading the CSVs with polars
+
+```python
+SAMPLE_TABLE = pl.read_csv(
+    BASE_DIR / "sample_table.csv",
+    schema_overrides={"parent_report": pl.String, "report": pl.String},
+)
+
+TIME_SERIES_TABLE = pl.read_csv(BASE_DIR / "time_series_table.csv")
+```
+
+polars is a DataFrame library (similar role to pandas). `pl.read_csv` returns a
+`DataFrame` — a table with named, typed columns.
+
+Two details worth noticing:
+
+- `BASE_DIR = Path(__file__).resolve().parent` is the folder `app.py` lives in.
+  Building paths from it means the app works no matter which directory you launch
+  it from. `Path` objects let you join paths with `/`, which is why
+  `BASE_DIR / "sample_table.csv"` works.
+- `schema_overrides` forces `parent_report` and `report` to be read as strings.
+  Without it, polars would see `1000001` and `001` and guess "integer", and the
+  leading zeros in `report` would be lost.
+
+These two tables are read **once, at import time** (they're module-level
+variables, i.e. defined at the top of the file, not inside a function). Every
+request reuses them from memory. That's fine for read-only data; if the CSVs
+changed while the server ran, you'd have to restart to pick up the changes.
+
+## 2. The two data-shaping functions
+
+### Summing by parent_report
+
+```python
+def sum_by_parent_report(sample_df: pl.DataFrame) -> pl.DataFrame:
+    return (
+        sample_df.group_by("parent_report")
+        .agg(
+            pl.len().alias("report_count"),
+            pl.col("pm").sum(),
+            pl.col("cm").sum(),
+            pl.col("otm").sum(),
+        )
+        .sort("parent_report")
+    )
+```
+
+This is polars' version of SQL's `GROUP BY`. For each distinct `parent_report`
+value it computes a row count (`pl.len()`) and the sums of the numeric columns.
+`.alias("report_count")` names the count column; the summed columns keep their
+original names. The `report_count` is what the template later uses to decide
+whether a row gets a plus button.
+
+The `(sample_df.method().method().method())` style is *method chaining* — each
+method returns a new DataFrame, so you can keep going. The outer parentheses are
+only there so Python allows the line breaks.
+
+Note the function takes the DataFrame as a parameter instead of using
+`SAMPLE_TABLE` directly. That matters because the route filters the table by
+`sample_group` first and passes in the filtered version.
+
+### Building the chart payload
+
+```python
+def line_graph_context(ts_df: pl.DataFrame) -> dict:
+    sorted_df = ts_df.sort("year", "month")
+    labels = [
+        f"{MONTH_LABELS[row['month'] - 1]} {row['year']}" for row in sorted_df.to_dicts()
+    ]
+    return {
+        "labels": labels,
+        "datasets": [
+            {
+                "label": "Estimate",
+                "data": sorted_df.get_column("estimate").to_list(),
+                "borderColor": "#f97316",
+            },
+            {
+                "label": "Benchmark",
+                "data": sorted_df.get_column("benchmark").to_list(),
+                "borderColor": "#15803d",
+            },
+        ],
+    }
+```
+
+Chart.js (the JavaScript charting library used in the browser) wants its input in
+a specific shape: a list of x-axis `labels`, and a list of `datasets`, each with a
+`label` (legend text), `data` (list of y-values), and styling like `borderColor`.
+This function converts the DataFrame into exactly that shape as plain Python
+dicts/lists, which serialize cleanly to JSON later.
+
+Bits of syntax in there:
+
+- `sorted_df.to_dicts()` turns the DataFrame into a list of dicts, one per row —
+  handy for looping.
+- The `labels = [...]` line is a *list comprehension*: build a list by evaluating
+  the expression once per row.
+- `f"{...} {...}"` is an f-string: string interpolation. `MONTH_LABELS[row['month'] - 1]`
+  maps month number 1–12 to `"Jan"`–`"Dec"` (the `- 1` because lists are 0-indexed).
+- `.get_column("estimate").to_list()` pulls one column out as a plain Python list.
+
+## 3. FastAPI setup
+
+```python
+app = FastAPI(title="Basic Version")
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+templates = Jinja2Templates(directory=BASE_DIR / "templates")
+```
+
+- `app` is the web application object. Routes get attached to it with decorators
+  (below), and a server like uvicorn runs it.
+- `app.mount("/static", ...)` says: any URL starting with `/static/` is served
+  directly from the `static/` folder as a plain file. That's how the browser gets
+  `styles.css` and `app.js` — no Python code runs for those.
+- `Jinja2Templates` points the template engine at the `templates/` folder, so a
+  route can say "render `index.html` with these variables".
+
+The dropdown options are computed once at startup, right after the CSVs load:
+
+```python
+DATA_SERIES_OPTIONS = (
+    TIME_SERIES_TABLE.get_column("data_series").unique(maintain_order=True).to_list()
+)
+SAMPLE_GROUP_OPTIONS = (
+    SAMPLE_TABLE.get_column("sample_group").unique(maintain_order=True).to_list()
+)
+```
+
+`unique(maintain_order=True)` keeps first-appearance order, so "the first value in
+the CSV" is also the default selection.
+
+## 4. The main route: the form → query params → filter cycle
+
+```python
+@app.get("/", response_class=HTMLResponse)
+async def index(
+    request: Request, data_series: str = "", sample_group: str = ""
+) -> HTMLResponse:
+    if data_series not in DATA_SERIES_OPTIONS:
+        data_series = DATA_SERIES_OPTIONS[0]
+    if sample_group not in SAMPLE_GROUP_OPTIONS:
+        sample_group = SAMPLE_GROUP_OPTIONS[0]
+
+    time_series_df = TIME_SERIES_TABLE.filter(pl.col("data_series") == data_series)
+    sample_df = SAMPLE_TABLE.filter(pl.col("sample_group") == sample_group)
+
+    return templates.TemplateResponse(
+        request,
+        "index.html",
+        {
+            "data_series_options": DATA_SERIES_OPTIONS,
+            "sample_group_options": SAMPLE_GROUP_OPTIONS,
+            "selected_data_series": data_series,
+            "selected_sample_group": sample_group,
+            "line_graph": line_graph_context(time_series_df),
+            "parent_report_columns": ["parent_report", "report_count", "pm", "cm", "otm"],
+            "parent_report_rows": sum_by_parent_report(sample_df).to_dicts(),
+        },
+    )
+```
+
+Piece by piece:
+
+- `@app.get("/", ...)` is a decorator that registers this function to handle
+  `GET /` requests. FastAPI calls it once per request.
+- **Query parameters for free:** because the function signature has
+  `data_series: str = ""` and FastAPI sees those aren't path parameters, it fills
+  them from the URL's query string. A request to
+  `/?data_series=metro&sample_group=retail` arrives with those arguments already
+  set. No parsing code needed — this is FastAPI's signature-driven style.
+- The two `if ... not in ...` checks make bad or missing values fall back to the
+  first option, so `/` with no query string renders the defaults instead of
+  crashing.
+- `.filter(pl.col("data_series") == data_series)` keeps only matching rows.
+  `pl.col(...) == value` builds an *expression* that polars applies to the whole
+  column at once (no explicit loop).
+- `templates.TemplateResponse(request, "index.html", {...})` renders the template.
+  The dict is the **context**: every key becomes a variable the template can use.
+  This is the whole Jinja2 contract — Python computes values, the template
+  arranges them into HTML.
+- `async def` marks the handler as a coroutine. FastAPI supports both `def` and
+  `async def`; nothing here awaits anything, so don't read too much into it.
+
+### The HTML form that drives it
+
+In `index.html`:
+
+```html
+<form id="filters" class="filter-form" method="get" action="/">
+  <label>
+    data_series
+    <select name="data_series">
+      {% for option in data_series_options %}
+        <option value="{{ option }}" {% if option == selected_data_series %}selected{% endif %}>{{ option }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  ...
+  <button type="submit">Submit</button>
+</form>
+```
+
+`method="get" action="/"` means: on submit, the browser collects every named form
+field and navigates to `/?data_series=<value>&sample_group=<value>`. That URL hits
+the `index` route above, which filters and re-renders. No JavaScript is involved
+in this loop at all — it's the classic form round-trip:
+
+```
+select values → Submit → GET /?data_series=X&sample_group=Y → filter → render → page reloads
+```
+
+The `{% if option == selected_data_series %}selected{% endif %}` part makes the
+dropdown show the value that was just submitted, instead of resetting to the first
+option after every reload.
+
+## 5. Jinja2 template basics
+
+Jinja2 has two delimiters you need:
+
+- `{{ expression }}` — evaluate and print into the HTML.
+- `{% statement %}` — control flow (`for`, `if`), prints nothing itself.
+- (`{# ... #}` is a comment, dropped from the output.)
+
+The summary table shows both, plus how the context variables get used:
+
+```html
+{% for row in parent_report_rows %}
+  <tr class="parent-report-summary-row" data-parent-report-row="{{ row.parent_report }}">
+    <td class="expand-cell">
+      {% if row.report_count > 1 %}
+        <button
+          type="button"
+          class="expand-button"
+          data-toggle-details
+          data-row-parent-report="{{ row.parent_report }}"
+          aria-expanded="false"
+        ><span class="expand-icon">+</span></button>
+      {% endif %}
+    </td>
+    {% for column in parent_report_columns %}
+      <td>{{ row[column] }}</td>
+    {% endfor %}
+  </tr>
+{% endfor %}
+```
+
+- `parent_report_rows` came from `sum_by_parent_report(sample_df).to_dicts()`, so
+  each `row` is a dict. Jinja2 lets you write `row.parent_report` or
+  `row[column]` interchangeably for dict access.
+- The inner loop over `parent_report_columns` prints the cells in a fixed order —
+  driving it from a list keeps the header row and body rows aligned by
+  construction.
+- The `{% if row.report_count > 1 %}` is the "only multi-report groups get a plus
+  button" rule.
+- The `data-*` attributes (like `data-row-parent-report="1000003"`) are how the
+  server-rendered HTML passes values to the JavaScript. JS reads them later via
+  `element.dataset`.
+
+### Getting the chart data to JavaScript
+
+```html
+<script id="line-graph-data" type="application/json">{{ line_graph | tojson }}</script>
+```
+
+`| tojson` is a Jinja2 *filter* that serializes the `line_graph` dict to JSON.
+Because the `<script>` tag's type is `application/json`, the browser doesn't
+execute it — it's just an inert blob of data embedded in the page. In
+`static/app.js`:
+
+```js
+const dataScript = document.querySelector("#line-graph-data");
+const lineGraph = JSON.parse(dataScript.textContent);
+new Chart(canvas, {
+  type: "line",
+  data: lineGraph,
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: true },
+    },
+  },
+});
+```
+
+The JS reads the blob, parses it, and hands it to Chart.js (loaded from a CDN in
+`index.html`'s `<head>`). This "JSON script tag" pattern is a simple way to pass
+structured data from server to browser without an extra HTTP request.
+
+## 6. The expandable rows: JS → FastAPI → HTML fragment
+
+This is the one place the page talks to the server *without* reloading. The flow:
+
+```
+click [+] → JS fetch() POSTs {"parent_report": "1000003"} to /api/parent-report-details
+         → FastAPI filters the sample table, renders <tr> rows with Jinja2
+         → JS inserts the returned HTML right after the clicked row
+```
+
+### Browser side (`static/app.js`)
+
+```js
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-toggle-details]");
+  if (!button) {
+    return;
+  }
+
+  const parentReport = button.dataset.rowParentReport;
+  ...
+  const response = await fetch("/api/parent-report-details", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ parent_report: parentReport }),
+  });
+
+  const html = await response.text();
+  summaryRow.insertAdjacentHTML("afterend", html);
+```
+
+- One click listener on the whole document, then `closest("[data-toggle-details]")`
+  to check whether the click landed on (or inside) an expand button. This *event
+  delegation* pattern means rows added later automatically work too.
+- `button.dataset.rowParentReport` reads the `data-row-parent-report` attribute the
+  template wrote — camelCase in JS maps to kebab-case in HTML.
+- `fetch(...)` makes the HTTP request from JS; `await` pauses until it finishes.
+- The response body is **HTML, not JSON**. The JS doesn't build any DOM itself —
+  it just drops the server-rendered rows into the table with `insertAdjacentHTML`.
+
+The rest of the listener handles the toggle: if the button is already expanded
+(`aria-expanded="true"`), it removes all rows matching
+`[data-detail-row="<id>"]` and flips the icon back to `+` instead of fetching.
+
+### Server side (`app.py`)
+
+```python
+class ParentReportDetailsRequest(BaseModel):
+    parent_report: str
+
+
+@app.post("/api/parent-report-details", response_class=HTMLResponse)
+async def api_parent_report_details(payload: ParentReportDetailsRequest) -> HTMLResponse:
+    details_df = SAMPLE_TABLE.filter(
+        pl.col("parent_report") == payload.parent_report
+    ).sort("report")
+    html = templates.env.get_template("_parent_report_detail_rows.html").render(
+        detail_rows=details_df.to_dicts(),
+        parent_report=payload.parent_report,
+    )
+    return HTMLResponse(html)
+```
+
+- `ParentReportDetailsRequest` is a **pydantic model**. Declaring it as the
+  parameter type tells FastAPI: parse the request's JSON body, check it has a
+  string `parent_report` field, and hand me the result as an object
+  (`payload.parent_report`). Malformed requests get rejected with a 422 error
+  before your code runs — that's the validation you get for free.
+- This route renders a template *fragment* rather than a full page:
+  `templates.env.get_template(...).render(...)` returns the rendered HTML as a
+  string (compare with `TemplateResponse`, which is the full page + request
+  plumbing). The fragment is just `<tr>` elements:
+
+```html
+{% for row in detail_rows %}
+  <tr class="parent-report-detail-row" data-detail-row="{{ parent_report }}">
+    <td class="expand-cell"></td>
+    <td class="detail-report">{{ parent_report }}-{{ row.report }}</td>
+    <td></td>
+    <td>{{ row.pm }}</td>
+    <td>{{ row.cm }}</td>
+    <td>{{ row.otm }}</td>
+  </tr>
+{% endfor %}
+```
+
+Valid HTML documents don't allow a bare `<tr>` at the top level, but that's fine
+here — it's never a document, just a string the JS splices into an existing
+`<tbody>`. Each row carries `data-detail-row="<parent_report>"` so the collapse
+code can find and remove exactly these rows later.
+
+The leading underscore in `_parent_report_detail_rows.html` is just a naming
+convention: "this is a partial, not a full page".
+
+## 7. Running it
+
+```python
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="127.0.0.1", port=8000)
+```
+
+`__name__ == "__main__"` is true only when the file is executed directly
+(`python app.py`), not when imported — so tests can `import app` without starting
+a server. uvicorn is the actual HTTP server; FastAPI is just the framework it
+hosts. Alternatively, from inside the folder:
+
+```bash
+uvicorn app:app --reload    # --reload restarts on code changes
+```
+
+Then open http://127.0.0.1:8000. Dependencies: `pip install fastapi uvicorn polars jinja2`.
+
+## The mental model, in one pass
+
+1. **Startup:** read both CSVs into polars DataFrames; compute the dropdown options.
+2. **Page load (`GET /`):** read `data_series`/`sample_group` from the query string
+   (defaulting to the first values), filter both tables, shape the data
+   (chart dict, summed rows), render `index.html` with that context.
+3. **In the browser:** Chart.js draws the graph from the embedded JSON;
+   the table is already plain HTML.
+4. **Form submit:** browser navigates to `/?data_series=...&sample_group=...` and
+   step 2 repeats with different filters.
+5. **Plus button:** JS POSTs the parent_report id, FastAPI renders just the detail
+   rows and returns them as HTML, JS inserts them under the clicked row.

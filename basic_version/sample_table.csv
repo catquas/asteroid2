@@ -1,0 +1,16 @@
+sample_group,parent_report,report,cm,pm,otm
+manufacturing,1000001,001,125,120,5
+manufacturing,1000001,002,44,45,-1
+manufacturing,1000002,001,310,300,10
+manufacturing,1000003,001,78,80,-2
+manufacturing,1000003,002,65,60,5
+manufacturing,1000003,003,25,25,0
+manufacturing,1000004,001,500,510,-10
+manufacturing,1000005,001,95,90,5
+manufacturing,1000005,002,18,15,3
+retail,2000001,001,210,205,5
+retail,2000001,002,35,38,-3
+retail,2000002,001,150,150,0
+retail,2000003,001,88,82,6
+retail,2000003,002,42,45,-3
+retail,2000004,001,330,340,-10
