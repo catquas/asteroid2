@@ -12,10 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent
 # --- Input tables ---
 
 # Sample table: one row per report. A parent_report can have multiple reports.
-SAMPLE_TABLE = pl.read_csv(
-    BASE_DIR / "sample_table.csv",
-    schema_overrides={"parent_report": pl.String, "report": pl.String},
-)
+SAMPLE_TABLE = pl.read_csv(BASE_DIR / "sample_table.csv")
 
 # Time series table: one row per month.
 TIME_SERIES_TABLE = pl.read_csv(BASE_DIR / "time_series_table.csv")
@@ -66,11 +63,6 @@ app = FastAPI(title="Basic Version")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
-
-class ParentReportDetailsRequest(BaseModel):
-    parent_report: str
-
-
 DATA_SERIES_OPTIONS = (
     TIME_SERIES_TABLE.get_column("data_series").unique(maintain_order=True).to_list()
 )
@@ -109,14 +101,14 @@ async def index(
 
 
 @app.post("/api/parent-report-details", response_class=HTMLResponse)
-async def api_parent_report_details(payload: ParentReportDetailsRequest) -> HTMLResponse:
+async def api_parent_report_details(parent_report: str) -> HTMLResponse:
     # Return rendered <tr> elements for the reports behind one parent_report.
     details_df = SAMPLE_TABLE.filter(
-        pl.col("parent_report") == payload.parent_report
+        pl.col("parent_report") == parent_report
     ).sort("report")
     html = templates.env.get_template("_parent_report_detail_rows.html").render(
         detail_rows=details_df.to_dicts(),
-        parent_report=payload.parent_report,
+        parent_report=parent_report,
     )
     return HTMLResponse(html)
 
