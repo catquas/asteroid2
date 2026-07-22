@@ -19,43 +19,6 @@ TIME_SERIES_TABLE = pl.read_csv(BASE_DIR / "time_series_table.csv")
 MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
-def sum_by_parent_report(sample_df: pl.DataFrame) -> pl.DataFrame:
-    # Sum the report-level sample rows up to one row per parent_report.
-    return (
-        sample_df.group_by("parent_report")
-        .agg(
-            pl.len().alias("report_count"),
-            pl.col("pm").sum(),
-            pl.col("cm").sum(),
-            pl.col("otm").sum(),
-        )
-        .sort("parent_report")
-    )
-
-
-def line_graph_context(ts_df: pl.DataFrame) -> dict:
-    # Chart.js payload: labels and one dataset.
-    sorted_df = ts_df.sort("year", "month")
-    labels = [
-        f"{MONTH_LABELS[row['month'] - 1]} {row['year']}" for row in sorted_df.to_dicts()
-    ]
-    return {
-        "labels": labels,
-        "datasets": [
-            {
-                "label": "Estimate",
-                "data": sorted_df.get_column("estimate").to_list(),
-                "borderColor": "#f97316",
-            },
-            {
-                "label": "Benchmark",
-                "data": sorted_df.get_column("benchmark").to_list(),
-                "borderColor": "#15803d",
-            },
-        ],
-    }
-
-
 # --- FastAPI setup ---
 
 app = FastAPI(title="Basic Version")
@@ -84,6 +47,40 @@ async def index(
     time_series_df = TIME_SERIES_TABLE.filter(pl.col("data_series") == data_series)
     sample_df = SAMPLE_TABLE.filter(pl.col("sample_group") == sample_group)
 
+    # Sum the report-level sample rows up to one row per parent_report.
+    parent_report_df = (
+        sample_df.group_by("parent_report")
+        .agg(
+            pl.len().alias("report_count"),
+            pl.col("pm").sum(),
+            pl.col("cm").sum(),
+            pl.col("otm").sum(),
+        )
+        .sort("parent_report")
+    )
+    parent_report_rows = parent_report_df.to_dicts()
+
+    # Chart.js payload: labels and one dataset per line.
+    sorted_ts_df = time_series_df.sort("year", "month")
+    line_graph = {
+        "labels": [
+            f"{MONTH_LABELS[row['month'] - 1]} {row['year']}"
+            for row in sorted_ts_df.to_dicts()
+        ],
+        "datasets": [
+            {
+                "label": "Estimate",
+                "data": sorted_ts_df.get_column("estimate").to_list(),
+                "borderColor": "#f97316",
+            },
+            {
+                "label": "Benchmark",
+                "data": sorted_ts_df.get_column("benchmark").to_list(),
+                "borderColor": "#15803d",
+            },
+        ],
+    }
+
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -92,9 +89,9 @@ async def index(
             "sample_group_options": SAMPLE_GROUP_OPTIONS,
             "selected_data_series": data_series,
             "selected_sample_group": sample_group,
-            "line_graph": line_graph_context(time_series_df),
+            "line_graph": line_graph,
             "parent_report_columns": ["parent_report", "report_count", "pm", "cm", "otm"],
-            "parent_report_rows": sum_by_parent_report(sample_df).to_dicts(),
+            "parent_report_rows": parent_report_rows,
         },
     )
 

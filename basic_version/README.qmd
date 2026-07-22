@@ -55,75 +55,7 @@ Polars is a DataFrame library similar to pandas but often faster and arguably ea
 
 `SAMPLE_TABLE` and `TIME_SERIES_TABLE` are global variables. Every HTML request reuses them from memory.
 
-## 2. The two data-shaping functions
-
-### Summing by parent_report
-
-```python
-def sum_by_parent_report(sample_df: pl.DataFrame) -> pl.DataFrame:
-    return (
-        sample_df.group_by("parent_report")
-        .agg(
-            pl.len().alias("report_count"),
-            pl.col("pm").sum(),
-            pl.col("cm").sum(),
-            pl.col("otm").sum(),
-        )
-        .sort("parent_report")
-    )
-```
-
-For each distinct `parent_report` value, this step computes a row count (`pl.len()`) and the sums of the numeric 
-columns. `.alias("report_count")` names the count column; the summed columns keep their
-original names. The `report_count` is what the template later uses to decide
-whether a row gets a plus button.
-
-Note the function takes the DataFrame as a parameter instead of using
-`SAMPLE_TABLE` directly. That matters because the route filters the table by
-`sample_group` first and passes in the filtered version.
-
-### Building the chart payload
-
-```python
-def line_graph_context(ts_df: pl.DataFrame) -> dict:
-    sorted_df = ts_df.sort("year", "month")
-    labels = [
-        f"{MONTH_LABELS[row['month'] - 1]} {row['year']}" for row in sorted_df.to_dicts()
-    ]
-    return {
-        "labels": labels,
-        "datasets": [
-            {
-                "label": "Estimate",
-                "data": sorted_df.get_column("estimate").to_list(),
-                "borderColor": "#f97316",
-            },
-            {
-                "label": "Benchmark",
-                "data": sorted_df.get_column("benchmark").to_list(),
-                "borderColor": "#15803d",
-            },
-        ],
-    }
-```
-
-Chart.js (the JavaScript charting library used in the browser) wants its input in
-a specific shape: a list of x-axis `labels`, and a list of `datasets`, each with a
-`label` (legend text), `data` (list of y-values), and styling like `borderColor`.
-This function converts the DataFrame into exactly that shape as plain Python
-dicts/lists, which serialize cleanly to JSON later.
-
-Bits of syntax in there:
-
-- `sorted_df.to_dicts()` turns the DataFrame into a list of dicts, one per row —
-  handy for looping.
-- The `labels = [...]` line is a *list comprehension*: build a list by evaluating
-  the expression once per row.
-- `f"{...} {...}"` is an f-string: string interpolation. `MONTH_LABELS[row['month'] - 1]`
-  maps month number 1–12 to `"Jan"`–`"Dec"` (the `- 1` because lists are 0-indexed).
-- `.get_column("estimate").to_list()` pulls one column out as a plain Python list.
-
-## 3. FastAPI setup
+## 2. FastAPI setup
 
 ```python
 app = FastAPI(title="Basic Version")
@@ -153,7 +85,7 @@ SAMPLE_GROUP_OPTIONS = (
 `unique(maintain_order=True)` keeps first-appearance order, so "the first value in
 the CSV" is also the default selection.
 
-## 4. The main route: the form → query params → filter cycle
+## 3. The main route: the form → query params → filter cycle
 
 ```python
 @app.get("/", response_class=HTMLResponse)
@@ -168,6 +100,40 @@ async def index(
     time_series_df = TIME_SERIES_TABLE.filter(pl.col("data_series") == data_series)
     sample_df = SAMPLE_TABLE.filter(pl.col("sample_group") == sample_group)
 
+    # Sum the report-level sample rows up to one row per parent_report.
+    parent_report_df = (
+        sample_df.group_by("parent_report")
+        .agg(
+            pl.len().alias("report_count"),
+            pl.col("pm").sum(),
+            pl.col("cm").sum(),
+            pl.col("otm").sum(),
+        )
+        .sort("parent_report")
+    )
+    parent_report_rows = parent_report_df.to_dicts()
+
+    # Chart.js payload: labels and one dataset per line.
+    sorted_ts_df = time_series_df.sort("year", "month")
+    line_graph = {
+        "labels": [
+            f"{MONTH_LABELS[row['month'] - 1]} {row['year']}"
+            for row in sorted_ts_df.to_dicts()
+        ],
+        "datasets": [
+            {
+                "label": "Estimate",
+                "data": sorted_ts_df.get_column("estimate").to_list(),
+                "borderColor": "#f97316",
+            },
+            {
+                "label": "Benchmark",
+                "data": sorted_ts_df.get_column("benchmark").to_list(),
+                "borderColor": "#15803d",
+            },
+        ],
+    }
+
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -176,9 +142,9 @@ async def index(
             "sample_group_options": SAMPLE_GROUP_OPTIONS,
             "selected_data_series": data_series,
             "selected_sample_group": sample_group,
-            "line_graph": line_graph_context(time_series_df),
+            "line_graph": line_graph,
             "parent_report_columns": ["parent_report", "report_count", "pm", "cm", "otm"],
-            "parent_report_rows": sum_by_parent_report(sample_df).to_dicts(),
+            "parent_report_rows": parent_report_rows,
         },
     )
 ```
@@ -198,12 +164,45 @@ Piece by piece:
 - `.filter(pl.col("data_series") == data_series)` keeps only matching rows.
   `pl.col(...) == value` builds an *expression* that polars applies to the whole
   column at once (no explicit loop).
-- `templates.TemplateResponse(request, "index.html", {...})` renders the template.
-  The dict is the **context**: every key becomes a variable the template can use.
-  This is the whole Jinja2 contract — Python computes values, the template
-  arranges them into HTML.
 - `async def` marks the handler as a coroutine. FastAPI supports both `def` and
   `async def`; nothing here awaits anything, so don't read too much into it.
+
+### Summing by parent_report
+
+The `parent_report_df` step works on the *filtered* `sample_df`. For each
+distinct `parent_report` value, it computes a row count (`pl.len()`) and the
+sums of the numeric columns. `.alias("report_count")` names the count column;
+the summed columns keep their original names. The `report_count` is what the
+template later uses to decide whether a row gets a plus button.
+`.to_dicts()` then turns the DataFrame into a list of dicts, one per row —
+the shape Jinja2 is happiest looping over.
+
+### Building the chart payload
+
+Chart.js (the JavaScript charting library used in the browser) wants its input
+in a specific shape: a list of x-axis `labels`, and a list of `datasets`, each
+with a `label` (legend text), `data` (list of y-values), and styling like
+`borderColor`. The `line_graph` dict is exactly that shape, built from plain
+Python dicts/lists, which serialize cleanly to JSON later.
+
+Bits of syntax in there:
+
+- `sorted_ts_df.to_dicts()` turns the DataFrame into a list of dicts, one per
+  row — handy for looping.
+- The `"labels": [...]` line is a *list comprehension*: build a list by
+  evaluating the expression once per row.
+- `f"{...} {...}"` is an f-string: string interpolation. `MONTH_LABELS[row['month'] - 1]`
+  maps month number 1–12 to `"Jan"`–`"Dec"` (the `- 1` because lists are 0-indexed).
+- `.get_column("estimate").to_list()` pulls one column out as a plain Python list.
+
+### Handing it all to Jinja2
+
+`templates.TemplateResponse(request, "index.html", {...})` renders the
+template. The dict is the **context**: every key becomes a variable the
+template can use. Because the data shaping happened just above, the context is
+just plain variables (`line_graph`, `parent_report_rows`, ...) — Python
+computes values, the template arranges them into HTML. That's the whole
+Jinja2 contract.
 
 ### The HTML form that drives it
 
@@ -237,7 +236,7 @@ The `{% if option == selected_data_series %}selected{% endif %}` part makes the
 dropdown show the value that was just submitted, instead of resetting to the first
 option after every reload.
 
-## 5. Jinja2 template basics
+## 4. Jinja2 template basics
 
 Jinja2 has two delimiters you need:
 
@@ -268,9 +267,9 @@ The summary table shows both, plus how the context variables get used:
 {% endfor %}
 ```
 
-- `parent_report_rows` came from `sum_by_parent_report(sample_df).to_dicts()`, so
-  each `row` is a dict. Jinja2 lets you write `row.parent_report` or
-  `row[column]` interchangeably for dict access.
+- `parent_report_rows` came from `parent_report_df.to_dicts()`, so each `row`
+  is a dict. Jinja2 lets you write `row.parent_report` or `row[column]`
+  interchangeably for dict access.
 - The inner loop over `parent_report_columns` prints the cells in a fixed order —
   driving it from a list keeps the header row and body rows aligned by
   construction.
@@ -311,7 +310,7 @@ The JS reads the blob, parses it, and hands it to Chart.js (loaded from a CDN in
 `index.html`'s `<head>`). This "JSON script tag" pattern is a simple way to pass
 structured data from server to browser without an extra HTTP request.
 
-## 6. The expandable rows: JS → FastAPI → HTML fragment
+## 5. The expandable rows: JS → FastAPI → HTML fragment
 
 This is the one place the page talks to the server *without* reloading. The flow:
 
@@ -402,7 +401,7 @@ code can find and remove exactly these rows later.
 The leading underscore in `_parent_report_detail_rows.html` is just a naming
 convention: "this is a partial, not a full page".
 
-## 7. Running it
+## 6. Running it
 
 ```python
 if __name__ == "__main__":
