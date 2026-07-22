@@ -210,7 +210,7 @@ Piece by piece:
 In `index.html`:
 
 ```html
-<form id="filters" class="filter-form" method="get" action="/">
+<form method="get" action="/">
   <label>
     data_series
     <select name="data_series">
@@ -249,8 +249,8 @@ The summary table shows both, plus how the context variables get used:
 
 ```html
 {% for row in parent_report_rows %}
-  <tr class="parent-report-summary-row" data-parent-report-row="{{ row.parent_report }}">
-    <td class="expand-cell">
+  <tr>
+    <td>
       {% if row.report_count > 1 %}
         <button
           type="button"
@@ -387,7 +387,7 @@ async def api_parent_report_details(payload: ParentReportDetailsRequest) -> HTML
 ```html
 {% for row in detail_rows %}
   <tr class="parent-report-detail-row" data-detail-row="{{ parent_report }}">
-    <td class="expand-cell"></td>
+    <td></td>
     <td class="detail-report">{{ parent_report }}-{{ row.report }}</td>
     <td></td>
     <td>{{ row.pm }}</td>

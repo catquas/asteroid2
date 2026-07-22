@@ -1,89 +1,38 @@
+/* Just enough styling to look OK; nothing here is load-bearing except .chart-wrap. */
+
 body {
   font-family: system-ui, sans-serif;
-  margin: 0;
-  background: #f8fafc;
-  color: #111827;
-}
-
-main {
   max-width: 720px;
   margin: 0 auto;
-  padding: 1.5rem 1rem;
+  padding: 1rem;
 }
 
-h1 {
-  font-size: 1.4rem;
-}
-
-h2 {
-  font-size: 1.1rem;
-}
-
-.filter-form {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-}
-
-.filter-form label {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.9rem;
-}
-
+/* The chart canvas fills this box, so it needs a fixed height
+   (the JS sets maintainAspectRatio: false). */
 .chart-wrap {
   height: 320px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 0.75rem;
 }
 
-.parent-report-table {
-  width: 100%;
+table {
   border-collapse: collapse;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
 }
 
-.parent-report-table th,
-.parent-report-table td {
-  padding: 0.35rem 0.6rem;
-  border-bottom: 1px solid #e5e7eb;
-  text-align: right;
-}
-
-.parent-report-table thead th {
-  background: #f1f5f9;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-}
-
-.expand-cell {
-  width: 2rem;
+th,
+td {
+  border: 1px solid #ccc;
+  padding: 4px 10px;
+  text-align: left;
 }
 
 .expand-button {
-  width: 1.4rem;
-  height: 1.4rem;
-  border: 1px solid #9ca3af;
-  border-radius: 4px;
-  background: #ffffff;
   cursor: pointer;
-  line-height: 1;
 }
 
+/* Detail rows are grayed and indented so they read as children of the summary row. */
 .parent-report-detail-row {
-  background: #f9fafb;
-  color: #4b5563;
-  font-size: 0.9rem;
+  color: #666;
 }
 
 .detail-report {
-  padding-left: 1.25rem;
+  padding-left: 1.5rem;
 }
