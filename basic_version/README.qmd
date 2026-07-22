@@ -1,4 +1,14 @@
-# How to Build a Web App With Python
+---
+title: "How to Build a Web App With Python"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    code-copy: true
+    number-sections: false
+execute:
+  enabled: false
+---
 
 This guide uses the **Polars** (data manipulation), **FastAPI** (web server), and **Jinja2** (HTML templates) 
 Python packages, as well as CSS and JavaScript. You can use Pandas instead of Polars with very few changes.
