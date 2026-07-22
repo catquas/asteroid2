@@ -13,7 +13,7 @@
       <h1>Basic Version</h1>
 
       {# GET form: submitting sends ?data_series=...&sample_group=... to the main endpoint. #}
-      <form id="filters" class="filter-form" method="get" action="/">
+      <form method="get" action="/">
         <label>
           data_series
           <select name="data_series">
@@ -33,7 +33,7 @@
         <button type="submit">Submit</button>
       </form>
 
-      <section class="chart-section">
+      <section>
         <h2>Time Series: {{ selected_data_series }}</h2>
         <div class="chart-wrap">
           <canvas id="time-series-chart"></canvas>
@@ -42,12 +42,12 @@
         <script id="line-graph-data" type="application/json">{{ line_graph | tojson }}</script>
       </section>
 
-      <section class="table-section">
+      <section>
         <h2>Sum by Parent Report: {{ selected_sample_group }}</h2>
-        <table class="parent-report-table">
+        <table>
           <thead>
             <tr>
-              <th class="expand-cell"></th>
+              <th></th>
               {% for column in parent_report_columns %}
                 <th>{{ column }}</th>
               {% endfor %}
@@ -55,8 +55,8 @@
           </thead>
           <tbody>
             {% for row in parent_report_rows %}
-              <tr class="parent-report-summary-row" data-parent-report-row="{{ row.parent_report }}">
-                <td class="expand-cell">
+              <tr>
+                <td>
                   {% if row.report_count > 1 %}
                     <button
                       type="button"

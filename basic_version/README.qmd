@@ -1,4 +1,14 @@
-# How to Build a Web App With Python
+---
+title: "How to Build a Web App With Python"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    code-copy: true
+    number-sections: false
+execute:
+  enabled: false
+---
 
 This guide uses the **Polars** (data manipulation), **FastAPI** (web server), and **Jinja2** (HTML templates) 
 Python packages, as well as CSS and JavaScript. You can use Pandas instead of Polars with very few changes.
@@ -200,7 +210,7 @@ Piece by piece:
 In `index.html`:
 
 ```html
-<form id="filters" class="filter-form" method="get" action="/">
+<form method="get" action="/">
   <label>
     data_series
     <select name="data_series">
@@ -239,8 +249,8 @@ The summary table shows both, plus how the context variables get used:
 
 ```html
 {% for row in parent_report_rows %}
-  <tr class="parent-report-summary-row" data-parent-report-row="{{ row.parent_report }}">
-    <td class="expand-cell">
+  <tr>
+    <td>
       {% if row.report_count > 1 %}
         <button
           type="button"
@@ -266,7 +276,7 @@ The summary table shows both, plus how the context variables get used:
   construction.
 - The `{% if row.report_count > 1 %}` is the "only multi-report groups get a plus
   button" rule.
-- The `data-*` attributes (like `data-row-parent-report="1000003"`) are how the
+- The `data-*` attributes (like `data-row-parent-report="ASFX03"`) are how the
   server-rendered HTML passes values to the JavaScript. JS reads them later via
   `element.dataset`.
 
@@ -306,7 +316,7 @@ structured data from server to browser without an extra HTTP request.
 This is the one place the page talks to the server *without* reloading. The flow:
 
 ```
-click [+] → JS fetch() POSTs {"parent_report": "1000003"} to /api/parent-report-details
+click [+] → JS fetch() POSTs to /api/parent-report-details?parent_report=ASFX03
          → FastAPI filters the sample table, renders <tr> rows with Jinja2
          → JS inserts the returned HTML right after the clicked row
 ```
@@ -322,11 +332,10 @@ document.addEventListener("click", async (event) => {
 
   const parentReport = button.dataset.rowParentReport;
   ...
-  const response = await fetch("/api/parent-report-details", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ parent_report: parentReport }),
-  });
+  const response = await fetch(
+    `/api/parent-report-details?parent_report=${encodeURIComponent(parentReport)}`,
+    { method: "POST" },
+  );
 
   const html = await response.text();
   summaryRow.insertAdjacentHTML("afterend", html);
@@ -348,27 +357,25 @@ The rest of the listener handles the toggle: if the button is already expanded
 ### Server side (`app.py`)
 
 ```python
-class ParentReportDetailsRequest(BaseModel):
-    parent_report: str
-
-
 @app.post("/api/parent-report-details", response_class=HTMLResponse)
-async def api_parent_report_details(payload: ParentReportDetailsRequest) -> HTMLResponse:
+async def api_parent_report_details(parent_report: str) -> HTMLResponse:
     details_df = SAMPLE_TABLE.filter(
-        pl.col("parent_report") == payload.parent_report
+        pl.col("parent_report") == parent_report
     ).sort("report")
     html = templates.env.get_template("_parent_report_detail_rows.html").render(
         detail_rows=details_df.to_dicts(),
-        parent_report=payload.parent_report,
+        parent_report=parent_report,
     )
     return HTMLResponse(html)
 ```
 
-- `ParentReportDetailsRequest` is a **pydantic model**. Declaring it as the
-  parameter type tells FastAPI: parse the request's JSON body, check it has a
-  string `parent_report` field, and hand me the result as an object
-  (`payload.parent_report`). Malformed requests get rejected with a 422 error
-  before your code runs — that's the validation you get for free.
+- `parent_report: str` works the same way as on the index route: a plain typed
+  parameter that isn't in the path becomes a **query parameter**, even on a POST.
+  That's why the JS puts the id in the URL. If a request arrives without it,
+  FastAPI rejects it with a 422 error before your code runs. (To accept the value
+  in the request *body* instead, you'd declare a pydantic model as the parameter
+  type — that's the usual next step when an endpoint takes more than one or two
+  values.)
 - This route renders a template *fragment* rather than a full page:
   `templates.env.get_template(...).render(...)` returns the rendered HTML as a
   string (compare with `TemplateResponse`, which is the full page + request
@@ -377,7 +384,7 @@ async def api_parent_report_details(payload: ParentReportDetailsRequest) -> HTML
 ```html
 {% for row in detail_rows %}
   <tr class="parent-report-detail-row" data-detail-row="{{ parent_report }}">
-    <td class="expand-cell"></td>
+    <td></td>
     <td class="detail-report">{{ parent_report }}-{{ row.report }}</td>
     <td></td>
     <td>{{ row.pm }}</td>

@@ -60,11 +60,11 @@ document.addEventListener("click", async (event) => {
   removeDetailRows();
   
   try {
-    const response = await fetch("/api/parent-report-details", {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
-      body: parentReport,
-    });
+    // The endpoint takes parent_report as a query parameter, so it goes in the URL.
+    const response = await fetch(
+      `/api/parent-report-details?parent_report=${encodeURIComponent(parentReport)}`,
+      { method: "POST" },
+    );
 
     if (!response.ok) {
       throw new Error(`Request failed: ${response.status}`);
