@@ -90,7 +90,7 @@ async def index(
             "selected_data_series": data_series,
             "selected_sample_group": sample_group,
             "line_graph": line_graph,
-            "parent_report_columns": ["parent_report", "report_count", "pm", "cm", "otm"],
+            "parent_report_columns": parent_report_df.columns,
             "parent_report_rows": parent_report_rows,
         },
     )
