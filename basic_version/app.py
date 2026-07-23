@@ -58,7 +58,6 @@ async def index(
         )
         .sort("parent_report")
     )
-    parent_report_rows = parent_report_df.to_dicts()
 
     # Chart.js payload: labels and one dataset per line.
     sorted_ts_df = time_series_df.sort("year", "month")
@@ -91,7 +90,7 @@ async def index(
             "selected_sample_group": sample_group,
             "line_graph": line_graph,
             "parent_report_columns": parent_report_df.columns,
-            "parent_report_rows": parent_report_rows,
+            "parent_report_rows": parent_report_df.to_dicts(),
         },
     )
 
